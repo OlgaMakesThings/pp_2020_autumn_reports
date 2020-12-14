@@ -1,0 +1,696 @@
+\documentclass{report}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage[14pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{indentfirst}
+\usepackage{pgfplots}
+
+\geometry{a4paper,top=2cm,bottom=3cm,left=2cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+
+\lstset{
+    language=C++,
+	numbers=left,
+	basicstyle=\footnotesize,
+	keywordstyle=\color{blue}\ttfamily,
+	stringstyle=\color{red}\ttfamily,
+	commentstyle=\color{green}\ttfamily,
+	morecomment=[l][\color{magenta}]{\#}, 
+	tabsize=2,
+	title=\lstname,       
+}
+
+%Переименовываем Оглавление в Содержание
+\addto\captionsrussian{\renewcommand \contentsname {\LARGE Содержание}}
+
+\begin{document}
+\begin{titlepage}
+\begin{center}
+Министерство образования и науки Российской федерации \\
+Федеральное государственное автономное образовательное учреждение высшего образования \\
+Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского \\
+Институт информационных технологий, математики и механики \\
+Направление подготовки: «Фундаментальная информатика и информационные технологии»
+\end{center}
+
+\vspace{4em}
+
+\begin{center}
+\textbf{\Large Отчет по лабораторной работе}
+\end{center}
+\begin{center}
+\textbf{\Large «Быстрая сортировка с простым слиянием»}
+\end{center}
+
+\vspace{4em}
+
+\newbox{\lbox}
+\savebox{\lbox}{\hbox{text}}
+\newlength{\maxl}
+\setlength{\maxl}{\wd\lbox}
+\hfill\parbox{7cm}{
+\textbf{Выполнил:} \\ 
+студент группы 381806-2 \\ 
+Куландин Д.С.\\
+\\
+\textbf{Проверил:}\\ 
+доцент кафедры МОСТ, \\ 
+кандидат технических наук \\ 
+Сысоев А. В.\\ }
+\vspace{\fill}
+
+\begin{center} Нижний Новгород \\ 2020 \end{center}
+
+\end{titlepage}
+
+\setcounter{page}{2}
+
+% Содержание
+\tableofcontents
+\newpage
+
+% Введение
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+Программирование содержит целый ряд важных внутренних задач. Одной из наиболее важных является задача сортировки. Часто нужно упорядочить предметы по какому-то признаку: записать данные числа в порядке возрастания (убывания), слова – по алфавиту, людей выстроить по росту. Если можно сравнить любые два предмета из данного набора, то этот набор всегда можно упорядочить. Процесс упорядочивания информации и называют «сортировкой». 
+\par Процедуры сортировки используются почти во всех программах управления базами данных, а также в компиляторах, интерпретаторах и операционных системах. Разбираться в отсортированных данных намного проще. Сортировка данных используется для эффективного решения других задач при программировании. Например, для упорядоченной совокупности данных быстро и легко решается задача, как поиск и отбор информации по заданному условию. Существуют ситуации, когда предварительная сортировка данных позволяет сократить содержательную часть алгоритма в разы, а время его работы - в десятки раз. 
+
+\par Алгоритмы сортировки образуют основу для огромного большинства прикладных программ. Сортировка информации — это одна из стандартных функций, возникающих в процессе решения задач. Существует много алгоритмов, обеспечивающих решение задачи сортировки. Одни из них обладают низким быстродействием, другие обладают очень высокой эффективностью и используются в современных компьютерных системах. 
+
+\newpage
+
+% Постановка задачи
+\section*{Постановка задачи}
+\addcontentsline{toc}{section}{Постановка задачи}
+В рамках лабораторной работы необходимо:
+\begin{itemize}
+    \item Реализовать последовательный алгоритм быстрой сортировки
+    \item Реализовать оптимизированный алгоритм быстрой сортировки с использованием MPI. Этот алгоритм будет параллельной реализацией алгоритма быстрой сортировки, и он позволит избежать этапа слияния, разделив входной набор данных по процессам
+    \item Оценить эффективность реализованых алгоритмов
+    \item Оценить производительность на основе логистических временных сложностей
+    \item На основе полученных результатов сделать выводы
+\end{itemize}
+\newpage
+
+% Описание алгоритма
+\section*{Описание алгоритма}
+\addcontentsline{toc}{section}{Описание алгоритма}
+Быстрая сортировка - это хорошо известный алгоритм, используемый для сортировки данных, разработанных Ч. Э. Р. Хоаром. Алгоритм имеет временную сложность $\mathcal{O}(n\log{}n)$ в среднем случае и $\mathcal{O}(n^2)$ в худшем случае. Но быстрая сортировка обычно считается более быстрой, чем некоторые алгоритмы сортировки, которые в среднем имеют временную сложность $\mathcal{O}(n\log{}n)$.
+\par Основой быстрой сортировки является выбор значения и разделение набора входных данных на два подмножества, один из которых содержит входные данные меньшего размера, чем выбранное значение, а другой содержит входные данные, превышающие выбранное значение. Это выбранное значение называется опорным значением. И на каждом этапе эти разделенные наборы данных делятся на части, выбирая опорные точки из каждого набора. Реализация быстрой сортировки рекурсивна, и условия остановки выполняются, когда невозможно дальнейшее разделение. \par Реализация последовательной сортировки:
+\par
+\begin{lstlisting}
+void division(int* a, int l, int r, int* t) {
+    int mid = a[(l + r) / 2];
+    while (l <= r) {
+        while (a[l] < mid) l++;
+        while (a[r] > mid) r--;
+        if (l >= r) break;
+        std::swap(a[l++], a[r--]);
+    }
+    *t = r;
+}
+
+void quickSort(int* a, int l, int r) {
+    if (l >= r) return;
+    int t = 0;
+    division(a, l, r, &t);
+    quickSort(a, l, t);
+    quickSort(a, t + 1, r);
+}
+\end{lstlisting}
+
+\newpage
+
+% Описание схемы распараллеливания
+\section*{Описание схемы распараллеливания}
+\addcontentsline{toc}{section}{Описание схемы распараллеливания}
+Быстрая сортировка считается не только более эффективным алгоритмом сортировки, но и одним из надежных алгоритмов, которые можно адаптировать к распараллеливанию. С помощью быстрой сортировки разделы можно сортировать параллельно и комбинировать с операцией слияния для сбора результирующих данных. Традиционные методы распараллеливания быстрой сортировки основаны на разделении исходного ввода на набор подмассивов и их распределении среди доступного набора процессов, которые будут последовательно сортироваться и позже собираться с использованием шагов слияния. Помимо этого, были проведены исследования по распараллеливанию быстрой сортировки путем оптимизации выбора сводных данных и различных стратегий разделения. 
+\par Моя попытка заключалась в том, чтобы избежать начального разброса данных и распределить наборы данных между процессами, используя начальные шаги разделения. Таким образом, можно избежать этапов слияния, поскольку окончательный результат получается только путем сбора отсортированного набора данных от каждого процесса.
+
+\subsection*{Основные шаги реализации}
+\addcontentsline{toc}{subsection}{Основные шаги реализации}
+\begin{itemize}
+    \item Выполнять разделение данных до тех пор, пока все доступные процессы не получат подмассивы изначальных данных
+    \item Отсортировать, используя последовательную быструю сортировку, полученные каждым процессом данные
+    \item Собрать отсортированные данные без выполнения слияния
+\end{itemize}
+
+\subsection*{Разбиение данных и выделение подмассивов}
+\addcontentsline{toc}{subsection}{Разбиение данных и выделение подмассивов}
+Схема разделения исходных данных состоит из следующих шагов:
+\begin{itemize}
+    \item Каждый процесс выполняет разделение данных с помощью опорного значения относительно того, доступен ли какой-либо процесс для совместного использования конкретного набора данных
+    \item Отправить одну часть данных в процесс, выбранный для совместного использования, и начать разбиение оставшегося набора данных, если доступно больше процессов
+    \item В противном случае выполнить последовательную быструю сортировку данного подмассива
+    \item Отправить локально отсортированный набор данных процессу-отправителю
+\end{itemize}
+\par Описанная схема требует правильного распределения процессов на каждом этапе и корректного совместного использования данных. Работа описанной схемы заключается в распределении исходных данных с учетом ранга и схемы распределения процессов, которая определяет, какие процессы будут совместно использовать набор данных.
+\subsection*{Схема распределения процессов}
+\addcontentsline{toc}{subsection}{Схема распределения процессов}
+Процессы распределяются по следующему уравнению: \par
+Процесс с рангом $r$ будет использовать массив совместно с процессом ранга 
+\begin{center}
+    $r + 2^n$, где $n$ удовлетворяет условию: $2^{n-1} \leq r \leq 2^n$
+\end{center}
+\par В случае, если процесса с таким рангом не существует, это будет означать, что процесс раздачи данного подмассива закончен. Данный массив будет отсортирован с помощью последовательного алгоритма быстрой сортировки. Затем отправится обратно к процессу-отправителю, который изначально разделял отсортированный подмассив большего размера. Каждый из этих вызовов реализован рекурсивно. Ниже приведена таблица с примером распределения процессов.
+
+\begin{table}[h]
+\centering
+    \begin{tabular}{ | p{2cm} | p{4cm} | p{6cm} | p{4cm} | }
+    \hline
+    Процесс & Процессы, \par с которыми \par подмассив \par используется \par совместно & Вычисление совместных процессов & Установленный процесс \par на каждом шаге \\ \hline
+    0 & 1 & $0 + 2^0$ & 0 \\ \hline 
+    0 \par 1 & 1,2 \par 3 & $0 + 2^0$ , $0 + 2^1$ \par $1 + 2^1$ & 1  \\ \hline
+    0 \par 1 \par 2 \par 3 & 1,2,4 \par 3,5 \par 6 \par 7 & $0 + 2^0$, $0 + 2^1$, $0 + 2^2$ \par $1 + 2^1$, $1 + 2^2$ \par $2 + 2^2$ \par $3 + 2^2$ & 2 \\ \hline
+    0 \par 1 \par 2 \par 3 \par 4 \par 5 \par 6 \par 7 & 1,2,4,8 \par 3,5,9 \par 6,10 \par 7,11 \par 12 \par 13 \par 14 \par 15 & $0 + 2^0$, $0 + 2^1$, $0 + 2^2$, $0 + 2^3$ \par $1 + 2^1$, $1 + 2^2$, $1 + 2^3$ \par $2 + 2^2$, $2 + 2^3$ \par $3 + 2^2$, $3 + 2^3$ \par $4 + 2^3$ \par $5 + 2^3$ \par $6 + 2^3$ \par $7 + 2^3$ & 3 \\ \hline
+    \end{tabular}
+    \caption{Пример схемы распределения процессов}
+\end{table}
+\newpage
+\subsection*{Проблема выбора части массива}
+\addcontentsline{toc}{subsection}{Проблема выбора части массива}
+После процесса выбора опорного элемента и упорядочивания массива относительно него возникает вопрос, связанный с тем, какую часть необходимо отдать на совместное использование другим процессам. В большинстве случаев массивы полученные с помощью упорядочивания массива относительно опорного элемента отличаются по размеру. Экспериментальным способом было выяснено, что выгоднее отправлять следующему процессу меньшую часть массива. Это связано с следующими причинами:
+\begin{itemize}
+    \item Снижает объем накладных ресурсов за счет передачи меньших данных. При передачи б\'{о}льшей части массива время существенно увеличивается.
+    \item Исходя из схемы распределения процессов, процесс, который несет ответственность за разделение, будет следующим в очереди, чтобы снова поделиться перед процессом получения данных. То есть, если еще остались свободные процессы, то у отправляющего процесса больше шансов отдать массив, чем у принимающего процесса.
+\end{itemize}
+\par Экспериментальный способ заключался в том, что была написана другая версия сортировки, в которой ведущий процесс сохраняет первую половину массива, а вторую половину отдаёт. В результате время сортировки с выбором меньшей части оказалось меньше, чем с выбором всегда первой части, поэтому было принято решение использовать разделение с выбором меньшей части.
+\newpage
+% Описание программной реализации
+\section*{Описание программной реализации}
+\addcontentsline{toc}{section}{Описание программной реализации}
+Параллельная сортировка реализована с помощью MPI, программа написана на языке программирования С++. Алгоритм параллельной сортировки вызывается с помощью функции:
+\begin{lstlisting}
+void parallelQuickSort(int* a, int length);
+\end{lstlisting}
+\par В качестве входных параметров передается массив, которые нужно отсортировать, и длина этого массива. Внутри данной функции вычисляется необходимая степень двойки, необходимая для передачи подмассивов другим процессам и вызывается рекурсивная функция
+\begin{lstlisting}
+void parallelQuickSortImpl(int* a, int arrSize, int curRank, int maxRank, int power);
+\end{lstlisting}
+\par Данная функция выполняет все вышеописанные шаги необходимые для разбиения и передачи подмассивов принимающим процессам. При выполнении данной функции сразу же вычисляем процесс, которому в последствии отдадим меньший подмассив:
+\begin{lstlisting}
+int nextProc = curRank + (1 << power);
+++power;
+\end{lstlisting}
+Если ранк вычисленного следующего процесса превышает максимально возможный, то данный подмассив сортируется с помощью последовательной быстрой сортировки, реализация которой была приведена выше:
+\begin{lstlisting}
+if (nextProc > maxRank) {
+    quickSort(a, 0, arrSize - 1);
+    return;
+}
+\end{lstlisting}
+Затем выполняем выбор опорного элемента и упорядочивание массива относительного опорного элемента с помощью функции division:
+\begin{lstlisting}
+int t = 0;
+division(a, 0, arrSize - 1, &t);
+\end{lstlisting}
+На данном этапе мы знаем позицию опорного элемента в массиве и знаем, что массив упорядочен относительного этого элемента. То есть все элементы, которые меньше или равны опорному стоят левее, остальные -- правее. Проверяем какая часть массива меньше, меньшую часть отправляем принимающему процессу:
+\begin{lstlisting}
+if (t + 1 < arrSize - t - 1) {
+    MPI_Send(a, t + 1, MPI_INT, nextProc, t, MPI_COMM_WORLD);
+    parallelQuickSortImpl(a + t + 1, arrSize - t - 1, curRank, maxRank, power);
+    MPI_Recv(a, t + 1, MPI_INT, nextProc, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+} else {
+    MPI_Send(a + t + 1, arrSize - t - 1, MPI_INT, nextProc, t + 1, MPI_COMM_WORLD);
+    parallelQuickSortImpl(a, t + 1, curRank, maxRank, power);
+    MPI_Recv(a + t + 1, arrSize - t - 1, MPI_INT, nextProc, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+}
+\end{lstlisting}
+\par Для передачи подмассива принимающему процессу используется функция MPI\_Send. Для приёма подмассива от процесса-отправителя используется функция MPI\_Recv. Для определения количества процессов и ранга текущего процесса используются функции MPI\_Comm\_size и MPI\_Comm\_rank.
+\newpage
+
+% Подтверждение корректности
+\section*{Подтверждение корректности}
+\addcontentsline{toc}{section}{Подтверждение корректности}
+Для подтверждения корректности в программе представлен набор тестов, разработанных с помощью использования Google C++ Testing Framework.
+\par Набор представляет из себя тесты, которые проверяют корректность входных данных (вектор, который необходимо отсортировать, должен иметь положительный размер), корректность вычислений (сравнивается полученный благодаря параллельной или последовательной сортировке вектор с вектором, отсортированным с помощью функции сортировки из STL библиотеки), а также эффективность (вычисление занимаемого последовательной и параллельной сортировок времени и сравнение полученных данных).
+\par Успешное прохождение всех тестов доказывает корректность работы программного комплекса.
+\newpage
+
+% Результаты экспериментов
+\section*{Результаты экспериментов}
+\addcontentsline{toc}{section}{Результаты экспериментов}
+Вычислительные эксперименты для оценки эффективности параллельной быстрой сортировки проводились на оборудовании со следующей аппаратной конфигурацией:
+\begin{itemize}
+\item Процессор: Intel Core i5-7500, тактовая частота $3400$ МГц и $3800$ МГц в режиме Turbo Boost, ядер: $4$, потоков: $4$
+\item Оперативная память: $24$ ГБ (DDR4), $2133$ МГц
+\item ОС: Microsoft Windows $10$
+\end{itemize}
+\par Для проведения экспериментов производилась сортировка массивов целых чисел различных размеров. Эксперименты проводились на $4$ процессах, в связи с тем, что процессор имеет всего $4$ ядра и $4$ потока. В качестве итогового времени в таблице выбрано среднее по $10$ запускам значение. Результаты экспериментов представлены в Таблице $2$.
+\newpage
+\begin{table}[h]
+    \begin{tabular}{ | p{4cm} | p{4cm} | p{4cm} | p{4cm} | }
+    \hline
+    Количество процессов & Последовательная реализация, сек & Параллельная \par реализация, сек & Ускорение\\ \hline
+    4    & 9.65  & 5.66  &1.39 \\ \hline
+    5    & 9.65  & 3.81  &2.53 \\ \hline 
+    6    & 9.65  & 4.07  &2.37 \\ \hline
+    7    & 9.65  & 4.39  &2.19 \\ \hline
+    8    & 9.65  & 5.21  &1.85 \\ \hline
+    9    & 9.65  & 5.65  &1.707\\ \hline
+    10   & 9.65  & 3.76  &2.56 \\ \hline
+    11   & 9.65  & 4.56  &2.11 \\ \hline
+    12   & 9.65  & 3.62  &2.66 \\ \hline
+    13   & 9.65  & 3.66  &2.63 \\ \hline
+    14   & 9.65  & 4.29  &2.249\\ \hline
+    15   & 9.65  & 3.83  &2.5  \\ \hline
+    16   & 9.65  & 4.727 &2.04 \\ \hline
+    17   & 9.65  & 3.7   &2.60 \\ \hline
+    18   & 9.65  & 4.06  &2.37 \\ \hline 
+    19   & 9.65  & 4.07  &2.37 \\ \hline 
+    20   & 9.65  & 4.03  &2.39 \\ \hline 
+    \end{tabular}
+    \caption{Результаты вычислительных экспериментов при массиве размером $10^8$}
+\end{table}
+\begin{tikzpicture}
+\begin{axis}[
+    title = Результаты экспериментов при размере массива $10^8$,
+	xlabel = {Количество процессов процессов},
+	ylabel = {Время, сек},
+	width = 400, 
+	height = 400,
+	legend pos = south west, 
+    ymin = 2, 
+    xmin = 2,
+    grid = major,
+]
+\legend{ 
+	Последовательная реализация,
+	Параллельная реализация,
+};
+\addplot coordinates {
+    (4 , 9.65)
+    (5 , 9.65)
+    (6 , 9.65)
+    (7 , 9.65)
+    (8 , 9.65)
+    (9 , 9.65)
+    (10, 9.65)
+    (11, 9.65)
+    (12, 9.65)
+    (13, 9.65)
+    (14, 9.65)
+    (15, 9.65)
+    (16, 9.65)
+    (17, 9.65)
+    (18, 9.65)
+    (19, 9.65)
+    (20, 9.65)
+};
+\addplot coordinates {
+    (4 , 5.66 )
+    (5 , 3.81 )
+    (6 , 4.07 )
+    (7 , 4.39 )
+    (8 , 5.21 )
+    (9 , 5.65 )
+    (10, 3.76 )
+    (11, 4.56 )
+    (12, 3.62 )
+    (13, 3.66 )
+    (14, 4.29 )
+    (15, 3.83 )
+    (16, 4.727)
+    (17, 3.7  )
+    (18, 4.06 )
+    (19, 4.07 )
+    (20, 4.03 )
+};
+\end{axis}
+\end{tikzpicture}
+\par По полученным данным хочется взглянуть на то как ведет себя реализация при различных размерах массива, исползуя $12$ процессов, поскольку минимальное время получено именно при $12$ процессах.
+\newpage
+\begin{table}[h]
+    \begin{tabular}{ | p{4cm} | p{4cm} | p{4cm} | p{4cm} | }
+    \hline
+    Размер массива & Последовательная реализация, сек & Параллельная \par реализация, сек & Ускорение\\ \hline
+    10000       & 0.0005    & 0.003     & 1,66   \\ \hline
+    100000      & 0.0066    & 0.005     & 1,32  \\ \hline 
+    1000000     & 0.0768    & 0.033     & 2,32  \\ \hline
+    5000000     & 0.41      & 0.198     & 2,07  \\ \hline
+    10000000    & 0.862     & 0.494     & 1,74  \\ \hline
+    20000000    & 1.78      & 0.817     & 2,17  \\ \hline
+    30000000    & 2.72      & 1.04      & 2,61  \\ \hline
+    40000000    & 3.65      & 1.25      & 2,92  \\ \hline
+    50000000    & 4.619     & 1.93      & 2,39   \\ \hline
+    60000000    & 5.61      & 2.36      & 2,37 \\ \hline
+    70000000    & 6.61      & 2.45      & 2,69  \\ \hline
+    80000000    & 7.6       & 2.91      & 2,61  \\ \hline
+    90000000    & 8.6       & 3.57      & 2,40  \\ \hline
+    100000000   & 9.72      & 3.62      & 2,68  \\ \hline 
+    \end{tabular}
+    \caption{Результаты вычислительных экспериментов при $12$ процессах}
+\end{table}
+
+\begin{tikzpicture}
+\begin{axis}[
+    title = Результаты экспериментов при $12$ процессах,
+	xlabel = {Размер массива $(10^6)$},
+	ylabel = {Время, сек},
+	width = 400, 
+	height = 400,
+	legend pos = north west, 
+    ymin = 0, 
+    xmin = 0,
+    grid = major,
+]
+\legend{ 
+	Параллельная реализация,
+	Последовательная реализация,
+};
+\addplot coordinates {
+	(0.01, 0.003)
+	(0.1, 0.005)
+	(1, 0.033)
+	(5, 0.198)
+	(10, 0.494)
+	(20, 0.817)
+	(30, 1.04)
+	(40, 1.25)
+	(50, 1.93)
+	(60, 2.36)
+	(70, 2.45)
+	(80, 2.91)
+	(90, 3.57)
+	(100, 3.62)
+};
+\addplot coordinates {
+	(0.01, 0.0005)
+	(0.1, 0.0066)
+	(1, 0.0768)
+	(5, 0.41)
+	(10, 0.862)
+	(20, 1.78)
+	(30, 2.72)
+	(40, 3.65)
+	(50, 4.619)
+	(60, 5.61)
+	(70, 6.61)
+	(80, 7.6)
+	(90, 8.6)
+	(100, 9.72)
+};
+\end{axis}
+\end{tikzpicture}
+\par По данным, полученным в результате экспериментов, можно сделать вывод о том, что параллельный случай работает действительно быстрее, чем последовательный. Однако можно заметить, что результаты нестабильны от запуска к запуску. Это связано с тем, что при каждом запуске исходной массив генерировался случайным образом, поэтому каждый раз опорный элемент выбирался разный. Массив генерировался случайным образом для того, чтобы показать насколько стабильна сортировка на различных массивах. От выбора опорного элемента в данной сортировке зависит очень многое. Может возникнуть ситуация, когда меньшая часть массива будет содержать очень мало элементов, а большая продолжит сортироваться в одном процессе, в следствии чего получим результат приближенный к последовательной быстрой сортировке. 
+\par Таким образом, параллельная реализация быстрой сортировки почти в $3$ раза быстрее своей последовательной версии.
+\newpage
+
+% Заключение
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+В результате лабораторной работы были разработаны последовательная и параллельная реализации быстрой сортировки.
+\par Основной задачей данной лабораторной работы была реализация параллельной версии, которая должна была быть эффективнее последовательной. Эта задача была успешно достигнута, о чем говорят результаты экспериментов, проведенных в ходе работы. Они показывают, что параллельный вариант работает действительно быстрее, чем последовательный.
+\par Кроме того, были разработаны и доведены до успешного выполнения тесты, созданные для данного программного проекта с использованием Google C++ Testing Framework и необходимые для подтверждения корректности работы программы.
+\newpage
+
+% Список литературы
+\begin{thebibliography}{1}
+\addcontentsline{toc}{section}{Список литературы}
+\bibitem{Hoare} 
+Hoare C. A. R. Quicksort //The Computer Journal. – 1962. – Т. 5. – №. 1. – С. 10-16.
+\bibitem{Sedgewick} 
+Sedgewick R. Implementing quicksort programs //Communications of the ACM. – 1978. – Т. 21. – №. 10. – С. 847-857.
+\bibitem{Sanders} 
+Sanders P., Hansch T. Efficient massively parallel quicksort //International Symposium on Solving Irregularly Structured Problems in Parallel. – Springer, Berlin, Heidelberg, 1997. – С. 13-24.
+\bibitem{Gergel} 
+Гергель В. П. Теория и практика параллельных вычислений. – 2007.
+\bibitem{Gergel} 
+Гергель В. П., Стронгин Р. Г. Основы параллельных вычислений для многопроцессорных вычислительных систем. – 2003.
+\bibitem{Korneev} 
+Корнеев В. Д. Параллельное программирование в MPI //Новосибирск: Изд-во СО РАН. – 2000.
+\end{thebibliography}
+\newpage
+
+% Приложение
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+В данном разделе находится листинг всего кода, написанного в рамках лабораторной работы.
+\begin{lstlisting}
+// quick_sort.h
+
+// Copyright 2020 Kulandin Denis
+#ifndef MODULES_TASK_3_KULANDIN_D_QUICK_SORT_QUICK_SORT_H_
+#define MODULES_TASK_3_KULANDIN_D_QUICK_SORT_QUICK_SORT_H_
+#include <vector>
+
+int* randomVector(int sz);
+int* copyVector(int* a, int sz);
+void quickSort(int* a, int l, int r);
+void division(int* a, int l, int r, int* t);
+void parallelQuickSort(int* a, int length);
+
+#endif  // MODULES_TASK_3_KULANDIN_D_QUICK_SORT_QUICK_SORT_H_
+\end{lstlisting}
+\begin{lstlisting}
+// quick_sort.cpp
+// Copyright 2020 Kulandin Denis
+#include <mpi.h>
+#include <ctime>
+#include <iostream>
+#include <random>
+#include <utility>
+#include <vector>
+#include "../../../modules/task_3/kulandin_d_quick_sort/quick_sort.h"
+
+std::mt19937 gen(time(0));
+
+int* randomVector(int sz) {
+    int* ans = new int[sz];
+    for (int i = 0; i < sz; ++i) {
+        ans[i] = gen();
+    }
+    return ans;
+}
+
+int* copyVector(int* a, int sz) {
+    int* ans = new int[sz];
+    for (int i = 0; i < sz; ++i) {
+        ans[i] = a[i];
+    }
+    return ans;
+}
+
+void division(int* a, int l, int r, int* t) {
+    int mid = a[(l + r) / 2];
+    while (l <= r) {
+        while (a[l] < mid) l++;
+        while (a[r] > mid) r--;
+        if (l >= r) break;
+        std::swap(a[l++], a[r--]);
+    }
+    *t = r;
+}
+
+void quickSort(int* a, int l, int r) {
+    if (l >= r) return;
+    int t = 0;
+    division(a, l, r, &t);
+    quickSort(a, l, t);
+    quickSort(a, t + 1, r);
+}
+
+void parallelQuickSortImpl(int* a, int arrSize, int curRank, int maxRank, int power) {
+    MPI_Status status;
+
+    int nextProc = curRank + (1 << power);
+    ++power;
+    if (nextProc > maxRank) {
+        quickSort(a, 0, arrSize - 1);
+        return;
+    }
+    int t = 0;
+    division(a, 0, arrSize - 1, &t);
+    if (t + 1 < arrSize - t - 1) {
+        MPI_Send(a, t + 1, MPI_INT, nextProc, t, MPI_COMM_WORLD);
+        parallelQuickSortImpl(a + t + 1, arrSize - t - 1, curRank, maxRank, power);
+        MPI_Recv(a, t + 1, MPI_INT, nextProc, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+    } else {
+        MPI_Send(a + t + 1, arrSize - t - 1, MPI_INT, nextProc, t + 1, MPI_COMM_WORLD);
+        parallelQuickSortImpl(a, t + 1, curRank, maxRank, power);
+        MPI_Recv(a + t + 1, arrSize - t - 1, MPI_INT, nextProc, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+    }
+}
+
+void parallelQuickSort(int* a, int length) {
+    int size, rank;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    int power = 0;
+
+    while ((1 << power) <= rank) {
+        ++power;
+    }
+
+    if (!rank) {
+        parallelQuickSortImpl(a, length, rank, size - 1, power);
+    } else {
+        MPI_Status status;
+        int subSize;
+        MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        MPI_Get_count(&status, MPI_INT, &subSize);
+
+        int source = status.MPI_SOURCE;
+        int* tmp = new int[subSize];
+        MPI_Recv(tmp, subSize, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        parallelQuickSortImpl(tmp, subSize, rank, size - 1, power);
+        MPI_Send(tmp, subSize, MPI_INT, source, 0, MPI_COMM_WORLD);
+    }
+}
+\end{lstlisting}
+\begin{lstlisting}
+// main.cpp
+// Copyright 2020 Kulandin Denis
+#include <gtest-mpi-listener.hpp>
+#include <gtest/gtest.h>
+#include <vector>
+#include <algorithm>
+#include "./quick_sort.h"
+
+TEST(Parallel_Quick_sort, Test_1) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    const int N = 5;
+    int* mas = new int[N];
+    if (rank == 0) {
+        mas = randomVector(N);
+    }
+    int* copy = copyVector(mas, N);
+
+    double timeParallel = MPI_Wtime();
+    parallelQuickSort(mas, N);
+    timeParallel = MPI_Wtime() - timeParallel;
+
+    if (rank == 0) {
+        double timeSequential = MPI_Wtime();
+        std::sort(copy, copy + N);
+        timeSequential = MPI_Wtime() - timeSequential;
+        ASSERT_EQ(std::vector<int>(copy, copy + N), std::vector<int>(mas, mas + N));
+        printf("Size of array = %d\n", N);
+        printf("Parallel time:              %.10f\n", timeParallel);
+        printf("Sequential time:            %.10f\n", timeSequential);
+    }
+}
+
+TEST(Parallel_Quick_sort, Test_2) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    const int N = 1337;
+    int* mas = new int[N];
+    if (rank == 0) {
+        mas = randomVector(N);
+    }
+    int* copy = copyVector(mas, N);
+
+    double timeParallel = MPI_Wtime();
+    parallelQuickSort(mas, N);
+    timeParallel = MPI_Wtime() - timeParallel;
+
+    if (rank == 0) {
+        double timeSequential = MPI_Wtime();
+        std::sort(copy, copy + N);
+        timeSequential = MPI_Wtime() - timeSequential;
+        ASSERT_EQ(std::vector<int>(copy, copy + N), std::vector<int>(mas, mas + N));
+        printf("Size of array = %d\n", N);
+        printf("Parallel time:              %.10f\n", timeParallel);
+        printf("Sequential time:            %.10f\n", timeSequential);
+    }
+}
+
+TEST(Parallel_Quick_sort, Test_3) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    const int N = 123456;
+    int* mas = new int[N];
+    if (rank == 0) {
+        mas = randomVector(N);
+    }
+    int* copy = copyVector(mas, N);
+
+    double timeParallel = MPI_Wtime();
+    parallelQuickSort(mas, N);
+    timeParallel = MPI_Wtime() - timeParallel;
+
+    if (rank == 0) {
+        double timeSequential = MPI_Wtime();
+        std::sort(copy, copy + N);
+        timeSequential = MPI_Wtime() - timeSequential;
+        ASSERT_EQ(std::vector<int>(copy, copy + N), std::vector<int>(mas, mas + N));
+        printf("Size of array = %d\n", N);
+        printf("Parallel time:              %.10f\n", timeParallel);
+        printf("Sequential time:            %.10f\n", timeSequential);
+    }
+}
+
+TEST(Parallel_Quick_sort, Test_4) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    const int N = 1864893;
+    int* mas = new int[N];
+    if (rank == 0) {
+        mas = randomVector(N);
+    }
+    int* copy = copyVector(mas, N);
+
+    double timeParallel = MPI_Wtime();
+    parallelQuickSort(mas, N);
+    timeParallel = MPI_Wtime() - timeParallel;
+
+    if (rank == 0) {
+        double timeSequential = MPI_Wtime();
+        std::sort(copy, copy + N);
+        timeSequential = MPI_Wtime() - timeSequential;
+        ASSERT_EQ(std::vector<int>(copy, copy + N), std::vector<int>(mas, mas + N));
+        printf("Size of array = %d\n", N);
+        printf("Parallel time:              %.10f\n", timeParallel);
+        printf("Sequential time:            %.10f\n", timeSequential);
+    }
+}
+
+TEST(Parallel_Quick_sort, Test_5) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    const int N = 3424507;
+    int* mas = new int[N];
+    if (rank == 0) {
+        mas = randomVector(N);
+    }
+    int* copy = copyVector(mas, N);
+
+    double timeParallel = MPI_Wtime();
+    parallelQuickSort(mas, N);
+    timeParallel = MPI_Wtime() - timeParallel;
+
+    if (rank == 0) {
+        double timeSequential = MPI_Wtime();
+        std::sort(copy, copy + N);
+        timeSequential = MPI_Wtime() - timeSequential;
+        ASSERT_EQ(std::vector<int>(copy, copy + N), std::vector<int>(mas, mas + N));
+        printf("Size of array = %d\n", N);
+        printf("Parallel time:              %.10f\n", timeParallel);
+        printf("Sequential time:            %.10f\n", timeSequential);
+    }
+}
+
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    MPI_Init(&argc, &argv);
+
+    ::testing::AddGlobalTestEnvironment(new GTestMPIListener::MPIEnvironment);
+    ::testing::TestEventListeners& listeners =::testing::UnitTest::GetInstance()->listeners();
+
+    listeners.Release(listeners.default_result_printer());
+    listeners.Release(listeners.default_xml_generator());
+
+    listeners.Append(new GTestMPIListener::MPIMinimalistPrinter);
+    return RUN_ALL_TESTS();
+}
+\end{lstlisting}
+
+\end{document}
