@@ -1,0 +1,680 @@
+\documentclass{report}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage[14pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{indentfirst}
+\usepackage{pgfplots}
+%\usepackage[latin1]{inputenc}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows}
+\geometry{a4paper,top=2cm,bottom=3cm,left=2cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+
+\lstset{
+    language=C++,
+	numbers=left,
+	basicstyle=\footnotesize,
+	keywordstyle=\color{blue}\ttfamily,
+	stringstyle=\color{red}\ttfamily,
+	commentstyle=\color{green}\ttfamily,
+	morecomment=[l][\color{magenta}]{\#}, 
+	tabsize=2,
+	title=\lstname,       
+}
+
+\begin{document}
+\begin{titlepage}
+\begin{center}
+Министерство науки и высшего образования Российской Федерации
+\end{center}
+\begin{center}
+Федеральное государственное автономное образовательное учреждение высшего образования \\
+Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского
+\end{center}
+\begin{center}
+Институт информационных технологий, математики и механики
+\end{center}
+
+
+\vspace{4em}
+
+\begin{center}
+\textbf{\LargeОтчет по лабораторной работе} \\
+\end{center}
+\begin{center}
+\textbf{\Large «"Вычисление многомерных интегралов с использованием многошаговой схемы\\ 
+(метод Симпсона)."»}
+\end{center}
+
+\vspace{4em}
+
+\newbox{\lbox}
+\savebox{\lbox}{\hbox{text}}
+\newlength{\maxl}
+\setlength{\maxl}{\wd\lbox}
+\hfill\parbox{7cm}{
+\textbf{Выполнил:} \\ 
+студент группы 381806-2 \\ 
+Лукьянченко И.А.\\
+\\
+\textbf{Проверил:}\\ 
+доцент кафедры МОСТ, \\ 
+кандидат технических наук \\ 
+Сысоев А. В.\\ }
+\vspace{\fill}
+
+\begin{center} Нижний Новгород \\ 2020 \end{center}
+
+\end{titlepage}
+
+\setcounter{page}{2}
+
+\tableofcontents
+\newpage
+
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+Интеграл — одно из важнейших понятий математического анализа, которое возникает при решении задач о нахождении площади под кривой, пройденного пути при неравномерном движении, массы неоднородного тела и других свойств математических и физических объектов. Но это недостаточно для полного описания и изучения некоторых объектов и их состояний, таких как объем тела, площадь произвольной поверхности, масса физического тела, координаты центра масс однородного тела, количество вещества. В таком случае используют многомерные интегралы - множество интегралов, взятых от d > 1 переменных.
+\par Численное интегрирование распространённая задача, которая имеет множество методов решения, некоторые из которых пренебрегают точностью, ради упрощенного решения и скорости. Но даже не взирая на это время и трудоемкость решение данной задачи прямо пропорционально зависит от мерности интеграла.
+
+\newpage
+
+
+\section*{Постановка задачи}
+\addcontentsline{toc}{section}{Постановка задачи}
+В рамках лабораторной работы необходимо разработать программу, которая:  
+\begin{itemize}
+    \item Вычисляет значения тройного интеграла от введенной функции последовательным методом Симпсона
+    \item Вычисляет значения тройного интеграла от введенной функции параллельным методом Симпсона, реализованным посредством MPI.
+    \item Сравнивает время работы и результаты реализованных алгоритмов
+    \item Сравнивает полученные результаты с корректными результатами
+
+\end{itemize}
+\newpage
+
+
+\section*{Описание алгоритма}
+\addcontentsline{toc}{section}{Описание алгоритма}
+Метод Симпсона (также Ньютона-Симпсона) относится к приёмам численного интегрирования. Суть метода заключается в приближении подынтегральной функции на отрезке [a,b] интерполяционным многочленом второй степени $\mathcal P_{2}(x)$, то есть приближение графика функции на отрезке параболой.
+\par
+Формулой Симпсона называется интеграл от интерполяционного многочлена второй степени на отрезке [a,b]:
+
+$\displaystyle {\int_{a}^{b} f(x) \, dx }\approx {\int_{a}^{b} P_{2}(x) \, dx}=\frac  {b-a}{6}{\left(f(a)+4f\left({\frac  {a+b}{2}}\right)+f(b)\right)}$,
+\par где ${\displaystyle f(a)}$, ${\displaystyle f((a+b)/2)}$ и ${\displaystyle f(b)}$ — значения функции в соответствующих точках (на концах отрезка и в его середине).
+
+\par Для более точного вычисления интеграла, интервал [a,b] разбивают на N=2n элементарных отрезков одинаковой длины и применяют формулу Симпсона на составных отрезках. Каждый составной отрезок состоит из соседней пары элементарных отрезков. Значение исходного интеграла является суммой результатов интегрирования на составных отрезках:
+
+${\displaystyle \int _{a}^{b}f(x)\,dx\approx {\frac {h}{3}}\left[f(x_{0})+2\sum _{j=1}^{n/2-1}f(x_{2j})+4\sum _{j=1}^{n/2}f(x_{2j-1})+f(x_{N})\right],}$
+\par где ${\displaystyle h={\frac {b-a}{N}}}$ — величина шага, а ${\displaystyle x_{j}=a+jh}$ — чередующиеся границы и середины составных отрезков, на которых применяется формула Симпсона.
+
+\par Для вычисления значений многомерных интегралов будем использовать многошаговую схему, так как при использовании формулы Симпсона мы будем получать вложенное использование формулы. 
+
+\par Рассмотрим на примере двойного интеграла:
+\par $\displaystyle \int_{c}^{d} \int_{a}^{b} f(x,y) \,dx\,dy$
+\par Обозначим внутренний интеграл $\displaystyle \int_{a}^{b} f(x,y) \, dy$ = F(x)
+\par Тогда по формуле Симпсона:
+
+\par $\displaystyle \int _{c}^{d} F(x) \,dx \approx \frac {d-c}{3*N} \left[ F_0+F_N+4\sum_{j=1}^{n/2}F_{2j-1}+2\sum _{j=1}^{n/2-1}F_{2j} \right]$,
+\par где $\displaystyle F_i=F(x_i)= \int_{a}^{b} f(x_i,y) \, dy$ , при $\displaystyle x_i=(a+\frac{b-a}{N}i)$ , $i=0,1,2,3...N$
+\par Применим формулу Симпсона для каждого полученного интеграла, с шагом $\displaystyle y_k=(c+\frac{d-c}{N}k)$, $k=0,1,2,3...N$ :
+\par $\displaystyle F_i\approx\frac{b-a}{3*N}\left[f(x_i,y_0)+f(x_i,y_N)+4\sum_{j=1}^{n/2}f(x_i,y_{2j-1})+2\sum _{j=1}^{n/2-1}f(x_i,y_{2j})\right]$
+\par Подставив значения в исходную формулу, получим искомое решение.  
+\par В итоге получаем многошаговую схему, согласно которой для решения многомерного интеграла может быть получено посредством решения последовательности одномерных интегралов.(Схема 1)
+\tikzstyle{block} = [rectangle, draw, 
+       text width=7em, text centered, rounded corners,node distance=5cm, minimum height=4em]
+
+\tikzstyle{line} = [draw, -latex']
+\tikzstyle{cloud}  = [ellipse,minimum height=1em]
+\begin{center}
+\begin{tikzpicture}[ auto]
+       % Place nodes
+       %nodes 1 lvl
+       \node [block ] (first) {$\displaystyle \int_{c}^{d} \int_{a}^{b}f(x,y)$};
+       \node [cloud, below of=first, node distance=2cm] (q) {};
+       \node [block, below of=q, node distance=2.5cm] (f2) {$\displaystyle 2\int_{c}^{d}f(a+2i,y)$ };
+       \node [block, left of=f2, node distance=4cm] (f1) {$\displaystyle 4\int_{c}^{d}f(a+i,y)$ };
+       \node [block, left of=f1, node distance=4cm] (f0) {$\displaystyle \int_{c}^{d}f(a,y)$ };
+       \node [cloud,right of=f2, node distance=3cm] (d) {$\dots$};
+       \node [block,right of=d, node distance=3cm] (fn) {$\displaystyle \int_{c}^{d}f(b,y)$ };
+       %nodes 2 lvl
+       \node [cloud, below of=f2, node distance=2cm] (q2) {};
+       \node [block, below of=q2, node distance=2.5cm] (ff2) {$\displaystyle 2f(a+2i,c+2j)$ };
+       \node [block, left of=ff2, node distance=4cm] (ff1) {$\displaystyle 4f(a+2i,c+j)$ };
+       \node [block, left of=ff1, node distance=4cm] (ff0) {$\displaystyle f(a+2i,c)$ };
+       \node [cloud,right of=ff2, node distance=3cm] (d2) {$\dots$};
+       \node [block,right of=d2, node distance=3cm] (ffn) {$\displaystyle f(a+2i,d)$ };
+       
+       % Draw edges
+       \path [line] (first) -- (q);
+       \path [line] (q) -| (f0);
+       \path [line] (q) -| (f1);
+       \path [line] (q) -| (fn);
+       \path [line] (q) -|(f2);
+       
+       \path [line] (f2) -- (q2);
+       \path [line] (q2) -| (ff0);
+       \path [line] (q2) -| (ff1);
+       \path [line] (q2) -| (ffn);
+       \path [line] (q2) -|(ff2);
+\end{tikzpicture}
+\par \textbf{Схема 1.} Последовательная работа алгоритма.
+\end{center}
+
+
+
+\newpage
+
+% Описание схемы распараллеливания
+\section*{Описание схемы распараллеливания}
+\addcontentsline{toc}{section}{Описание схемы распараллеливания}
+Для распараллеливания полученной схемы последовательного решения необходимо по возможности разделить всю работу между имеющимися процессами. Для это каждый процесс получает один из интегралов меньшего порядка чем исходный и проходит всю схему до конца. Первый процесс, из-за сложности с определением коэффициентов, обрабатвает первый и последний интеграл. Схема распределения процессов представлена на схеме 2.
+\begin{center}
+\begin{tikzpicture}[ auto]
+       % Place nodes
+       %nodes 1 lvl
+       \node [block ] (first) {$\displaystyle \int_{c}^{d} \int_{a}^{b}f(x,y)$};
+       \node [cloud, below of=first, node distance=2cm] (q) {2};
+       \node [cloud, left of=q, node distance=4cm] (w) {1};
+       \node [cloud, left of=w, node distance=4cm] (e) {0};
+       \node [cloud, right of=q, node distance=6cm] (r) {0};
+       \node [block, below of=q, node distance=2.5cm] (f2) {$\displaystyle 2\int_{c}^{d}f(a+2i,y)$ };
+       \node [block, left of=f2, node distance=4cm] (f1) {$\displaystyle 4\int_{c}^{d}f(a+i,y)$ };
+       \node [block, left of=f1, node distance=4cm] (f0) {$\displaystyle \int_{c}^{d}f(a,y)$ };
+       \node [cloud,right of=f2, node distance=3cm] (d) {$\dots$};
+       \node [block,right of=d, node distance=3cm] (fn) {$\displaystyle \int_{c}^{d}f(b,y)$ };
+       %nodes 2 lvl
+       \node [cloud, below of=f2, node distance=2cm] (q2) {};
+       \node [block, below of=q2, node distance=2.5cm] (ff2) {$\displaystyle 2f(a+2i,c+2j)$ };
+       \node [block, left of=ff2, node distance=4cm] (ff1) {$\displaystyle 4f(a+2i,c+j)$ };
+       \node [block, left of=ff1, node distance=4cm] (ff0) {$\displaystyle f(a+2i,c)$ };
+       \node [cloud,right of=ff2, node distance=3cm] (d2) {$\dots$};
+       \node [block,right of=d2, node distance=3cm] (ffn) {$\displaystyle f(a+2i,d)$ };
+       
+       % Draw edges
+       \path [line] (first) -- (q);
+       \path [line] (q) -- (f2);
+       \path [line] (q) -- (w);
+       \path [line] (w) -- (e);
+       \path [line] (e) -- (f0);
+       \path [line] (w) -- (f1);
+       \path [line] (q) -- (r);
+       \path [line] (r) --(fn);
+       
+       \path [line] (f2) |- (q2);
+       \path [line] (q2) -| (ff0);
+       \path [line] (q2) -| (ff1);
+       \path [line] (q2) -| (ffn);
+       \path [line] (q2) -|(ff2);
+\end{tikzpicture}
+\par \textbf{Схема 2.} Параллельная работа алгоритма с P процессами.
+\end{center}
+
+\par После прохождения всех ветвей схемы необходимо просуммировать все полученные значения функции на одном процессе, а зачем умножить на коэффициент $\displaystyle \frac{h}{(3*N)^a}$, где a - мерность интеграла, h - произведение всех разностей пределов интегрирования.
+
+\newpage
+
+
+\section*{Описание программной реализации}
+\addcontentsline{toc}{section}{Описание программной реализации}
+Алгоритм параллельного вычисления интеграла реализован с помощью MPI, программа написана на языке программирования С++. Алгоритм параллельной сортировки вызывается с помощью функции:
+\begin{lstlisting}
+double get_Paral_Integral( double (*f)(double, double, double),
+double ax, double bx, 
+double ay, double by,
+double az, double bz,int n);
+\end{lstlisting}
+\par В качестве входных параметров передается подынтегральная функция, пределы интегрирования и количество разбиений. Функция возвращает приблизительное численное значение интеграла. Если программа исполняется на 1 процессе, то функция вызывает последовательную реализацию через:
+\begin{lstlisting}
+double get_Integral(double(*f)(double, double, double),
+    double ax, double bx,
+    double ay, double by,
+    double az, double bz,
+    int n);
+\end{lstlisting}
+\par Данная функция имеет идентичные входные параметры и выполняет последовательно все вышеописанные шаги. Оба метода используют функцию подсчета значения одномерного интеграла методом Симпсона:
+\begin{lstlisting}
+double formula_simpson(double (*f)(double, double, double),
+    double X, double Y,
+    double a, double b,
+    int n);
+\end{lstlisting}
+Входными параметрами являются функция от трех переменных, значение первой и второй переменной, пределы интегрирования и количество разбиений.
+
+\par Проход процессами по ветвям решения осуществляется циклом for (int i = rank; i < n; i += size-1).По завершению прохода всеми процессами результаты суммируются на один процесс функцией $MPI\_Reduce$. Для определения количества процессов и ранга текущего процесса используются функции $MPI\_Comm\_size$ и $MPI\_Comm\_rank$.
+
+
+\newpage
+
+\section*{Подтверждение корректности}
+\addcontentsline{toc}{section}{Подтверждение корректности}
+Для подтверждения корректности в программе представлен набор тестов, разработанных с помощью использования Google C++ Testing Framework.
+\par Набор представляет из себя тесты, которые проверяют корректность вычислений (сравнивается результат, полученный благодаря параллельной реализации и введен пользователем точный ответ с точностью до 0.001), а также эффективность (вычисление занимаемого последовательной и параллельной сортировок времени и сравнение полученных данных).
+\par Успешное прохождение всех тестов доказывает корректность работы программного комплекса.
+
+\newpage
+
+% Результаты экспериментов
+\section*{Результаты экспериментов}
+\addcontentsline{toc}{section}{Результаты экспериментов}
+Вычислительные эксперименты для оценки эффективности параллельной быстрой сортировки проводились на оборудовании со следующей аппаратной конфигурацией:
+\begin{itemize}
+\item Процессор: Intel Core i5-7300HQ, тактовая частота $2,50$ ГГц и ядер: $4$, потоков: $4$
+\item Оперативная память: $6$ ГБ (DDR4), $2394$ МГц
+\item ОС: Microsoft Windows $10$
+\end{itemize}
+\par Для проведения экспериментов производилось вычисление тройного интеграла от трех различных функций при различных количествах разбиений.  Результаты экспериментов представлены в Таблице $1$ и Таблице $2$.
+
+
+\begin{table}[h]
+    \begin{tabular}{ | p{4cm} | p{4cm} | p{4cm} | p{4cm} | }
+    \hline
+    Кол-во процессов & Последовательно \par $f_2$, сек & Параллельно $f_2$ ,\par сек & Ускорение\\ \hline
+    2    & 0.62 & 0.58  &1.06 \\ \hline
+    3    & 0.64 & 0.31  &2.06\\ \hline
+    4    & 0.64 & 0.21  &3.04\\ \hline
+    5    & 0.8  & 0.16 &5 \\ \hline 
+    6    & 1.0  & 0.16 &6.25 \\ \hline
+    7    & 1.13 & 0.19 &5.94 \\ \hline
+    8    & 1.26 & 0.15 &8.4 \\ \hline
+    9    & 1.5  & 0.14 &10.7\\ \hline
+    10   & 1.6  & 0.14 &11.4 \\ \hline
+    11   & 1.8  & 0.19 &9.47 \\ \hline
+    12   & 1.9  & 0.14 &13.5 \\ \hline
+    13   & 2.10 & 0.18 &11.6 \\ \hline
+    14   & 2.32 & 0.13 &17.8 \\ \hline
+    15   & 2.39 & 0.13 &18.3 \\ \hline
+    \end{tabular}
+    \caption{Результаты вычислительных экспериментов второй функции при разбиении N=500}
+\end{table}
+
+\begin{table}[h]
+    \begin{tabular}{ | p{4cm} | p{4cm} | p{4cm} | p{4cm} | }
+    \hline
+    Функция и\par кол-во разбиений & Последовательно, сек & Параллельно, сек & Ускорение\\ \hline 
+    $f_1$, 50  & 0.05   & 0.1     &0.5 \\ \hline
+    $f_1$, 500 & 0.76   & 0.08    &9.5\\ \hline
+    $f_2$, 50  & 0.0007 & 0.00003 &2.3\\ \hline
+    $f_2$, 500 & 1.14   & 0.132   &8.63 \\ \hline 
+    $f_3$, 50  & 0.004  & 0.0006  &6.66 \\ \hline
+    $f_3$, 500 & 7.89   & 1.34    &5.88 \\ \hline
+    \end{tabular}
+    \caption{Результаты вычислительных экспериментов на 7 процессах}
+\end{table}
+
+\par По полученным данным хочется взглянуть на то как ведет себя реализация при различных размерах массива, используя $12$ процессов, поскольку минимальное время получено именно при $12$ процессах.
+\newpage
+
+\par По данным, полученным в результате экспериментов, можно сделать вывод о том, что в большинстве случаев параллельная реализация работает быстрее, чем последовательная. Это особенно сильно заметно при большом количестве разбиений. Получение замедления при малом разбиении первой функции можно объяснить простотой математических вычислений, которые занимают много раз меньше времени чем сбор результатов со всех процессов.
+\par В общем и целом, параллельная программа получилась быстрее своей последовательной реализации, что и было основной целью данной работы.
+
+\newpage
+
+% Заключение
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+Результатом лабораторной работы стали программные реализации последовательного и параллельного вычисления тройного интеграла методом Симпсона.
+\par Первостепенной задачей данной лабораторной работы была корректная работа обоих алгоритмов с целью получения ускорения параллельной программы относительно последовательной. Основываясь на результаты тестов, можно утверждать, что задача была успешно достигнута, а цель выполнена.
+\par Кроме того, были разработаны и доведены до успешного выполнения тесты, созданные для данного программного проекта с использованием Google C++ Testing Framework и необходимые для подтверждения корректности работы программы.
+
+\newpage
+
+% Список литературы
+\begin{thebibliography}{1}
+\addcontentsline{toc}{section}{Список литературы}
+\bibitem{Panasenko} 
+Панасенко А.Г. Методические указания к решению задач по
+численному интегрированию : Учебно-методическое пособие /Калашников А.Л., Федоткин А.М., Фокина В.Н. - Нижний Новгород: Нижегородский госуниверситет, 2016. – 31 с.
+\bibitem{Gergel} 
+Гергель В.П. Математическое моделирование
+оптимальное управление: Многомерная многоэкстремальная оптимизация на основе адаптивной многошаговой редукции размерности/ В.А. Гришагин, А.В. Гергель//Вестник Нижегородского университета им. Н.И. Лобачевского – 2010, № 1. –  С. 163–170.
+\bibitem{Gergel} 
+Гергель В. П. Теория и практика параллельных вычислений. – 2007.
+\bibitem{Gergel} 
+Гергель В. П., Стронгин Р. Г. Основы параллельных вычислений для многопроцессорных вычислительных систем. – 2003.
+\bibitem{Korneev} 
+Корнеев В. Д. Параллельное программирование в MPI //Новосибирск: Изд-во СО РАН. – 2000.
+
+\end{thebibliography}
+\newpage
+
+% Приложение
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+\begin{lstlisting}
+// integral_simpson.h
+
+#ifndef  MODULES_TASK_3_LUCKIANCHENKO_I_INTEGRAL_SIMPSON_INTEGRAL_SIMPSON_H_
+#define  MODULES_TASK_3_LUCKIANCHENKO_I_INTEGRAL_SIMPSON_INTEGRAL_SIMPSON_H_
+// Copyright 2020 Luckyanchenko Ivan
+double func1(double x, double y, double z);
+double func2(double x, double y, double z);
+double func3(double x, double y, double z);
+double get_Integral(double(*f)(double, double, double),
+double ax, double bx,
+double ay, double by,
+double az, double bz, int n);
+double formula_simpson(double (*f)(double, double, double), double X, double Y, double a, double b, int n);
+double get_Paral_Integral( double (*f)(double, double, double),
+                     double ax, double bx,
+                     double ay, double by,
+                     double az, double bz, int n);
+
+#endif  //   MODULES_TASK_3_LUCKIANCHENKO_I_INTEGRAL_SIMPSON_INTEGRAL_SIMPSON_H_
+
+\end{lstlisting}
+\begin{lstlisting}
+// integral_simpson.cpp
+
+// Copyright 2020 Luckyanchenko Ivan
+#include <mpi.h>
+#include <iostream>
+#include <numeric>
+#include <cmath>
+#include "../../../modules/task_3/luckianchenko_i_integral_simpson/integral_simpson.h"
+
+double func1(double x, double y, double z) {
+    return  3*x;
+}
+double func2(double x, double y, double z) {
+    return x/(x+y+z*y-x*y+x*z);
+}
+double func3(double x, double y, double z) {
+    return cos(x) / (y +z);
+}
+
+double get_Integral(double(*f)(double, double, double),
+    double ax, double bx,
+    double ay, double by,
+    double az, double bz,
+    int n) {
+    double hx = (bx - ax) / n;
+    double hy = (by - ay) / n;
+    double ans = 0;
+    for (int i = 1 ; i < n ; i ++) {
+        for (int j = 0 ; j <= n ; j ++) {
+            double X = ax + i * hx;
+            double Y = ay + j * hy;
+            if ((i % 2 == 0) && (j % 2 == 0)) {
+                if ((j != 0) && (j != n))
+                ans += 4 * formula_simpson(f, X, Y, az, bz, n);
+                else
+                    ans += 2*formula_simpson(f, X, Y, az, bz, n);
+            }
+            if ((i % 2 != 0) && (j % 2 != 0))
+                ans += 16 * formula_simpson(f, X, Y, az, bz, n);
+            if ((i % 2 != 0) && (j % 2 == 0)) {
+                if ((j != 0) && (j != n ))
+                    ans += 8 * formula_simpson(f, X, Y, az, bz, n);
+                else
+                    ans += 4*formula_simpson(f, X, Y, az, bz, n);
+            }
+            if ( ( i % 2 == 0 ) && ( j % 2 != 0 ) )
+                ans += 8 * formula_simpson(f, X, Y, az, bz, n);
+        }
+    }
+    for (int i = 0; i < 2; i++) {
+        for (int j = 0; j <= n; j++) {
+            double Y = ay + j * hy;
+            double X = ax + i * (bx - ax);
+            if (j % 2 == 0) {
+                if ((j != 0) && (j != n))
+                    ans += 2 * formula_simpson(f, X, Y, az, bz, n);
+                else
+                    ans += formula_simpson(f, X, Y, az, bz, n);
+            } else {
+                ans += 4 * formula_simpson(f, X, Y, az, bz, n);
+            }
+        }
+    }
+    ans += formula_simpson(f, ax, ay, az, bz, n) + formula_simpson(f, bx, by, az, bz, n);
+    ans *= (hy*hx)/9;
+    return ans;
+}
+
+double formula_simpson(double (*f)(double, double, double),
+    double X, double Y,
+    double a, double b,
+    int n) {
+    double res = 0;
+    double h = (b - a) / n;
+    for (int i = 1; i < n; i++) {
+        if (i % 2 == 0)
+            res += 2 * f(X, Y, a + i * h);
+        else
+            res += 4 * f(X, Y, a + i * h);
+    }
+    res += f(X, Y, a) + f(X, Y, b);
+    res *= h / 3;
+    return res;
+}
+
+double get_Paral_Integral( double (*f)(double, double, double),
+    double ax, double bx,
+    double ay, double by,
+    double az, double bz,
+    int n) {
+    int size, rank;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double ans = 0;
+    double integ = 0;
+    double X, Y;
+    double hx = (bx - ax) / n;
+    double hy = (by - ay) / n;
+    if (size > 1) {
+        if (rank == 0) {
+            for (int i = 0; i < 2; i++) {
+                for (int j = 0; j <= n; j++) {
+                    double Y = ay + j * hy;
+                    double X = ax + i * (bx - ax);
+                    if (j % 2 == 0) {
+                        if ((j != 0) && (j !=n ))
+                            integ += 2 * formula_simpson(f, X, Y, az, bz, n);
+                        else
+                            integ += formula_simpson(f, X, Y, az, bz, n);
+                    } else {
+                        integ += 4 * formula_simpson(f, X, Y, az, bz, n);
+                    }
+                }
+            }
+            integ+= formula_simpson(f, ax, ay, az, bz, n)+ formula_simpson(f, bx, by, az, bz, n);
+        }
+        if (rank != 0) {
+            for (int i = rank; i < n; i += size-1) {
+                for (int j = 0; j <= n; j++) {
+                    Y = ay+j*hy;
+                    X = ax+i*hx;
+                    if ((i % 2 == 0) && (j % 2 == 0)) {
+                        if ((j != 0) && (j !=n ))
+                             integ += 4 * formula_simpson(f, X, Y, az, bz, n);
+                        else
+                           integ += 2*formula_simpson(f, X, Y, az, bz, n);
+                    }
+                    if ((i % 2 != 0) && (j % 2 != 0)) {
+                        integ+=16*formula_simpson(f, X, Y, az, bz, n);
+                    }
+                    if ((i % 2 != 0) && (j % 2 == 0)) {
+                        if ( ( j != 0 ) && ( j != n ) )
+                            integ += 8 * formula_simpson(f, X, Y, az, bz, n);
+                        else
+                            integ += 4*formula_simpson(f, X, Y, az, bz, n);
+                    }
+                    if ((i % 2 == 0) && (j % 2 != 0))
+                        integ += 8*formula_simpson(f, X, Y, az, bz, n);
+                }
+            }
+        }
+        MPI_Reduce(&integ, &ans, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+        ans *= (hx*hy)/9;
+    } else {
+        ans = get_Integral(f, ax, bx, ay, by, az, bz, n);
+    }
+    return ans;
+}
+\end{lstlisting}
+\begin{lstlisting}
+// main.cpp
+
+// Copyright 2020 Luckyanchenko Ivan
+#include <gtest-mpi-listener.hpp>
+#include <gtest/gtest.h>
+#include <random>
+#include <vector>
+#include "./integral_simpson.h"
+
+TEST(Integral, Test_func1) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double start_time =  MPI_Wtime();
+    double res = get_Paral_Integral(func1, 1, 2, 3, 4, 5, 6, 50);
+    double end_time = MPI_Wtime();
+    double time_paral = end_time - start_time;
+    double start_time1 =  MPI_Wtime();;
+    double res1 = get_Integral(func1, 1, 2, 3, 4, 5, 6, 50);
+    double end_time1 = MPI_Wtime();
+    double time_notParal = end_time1 - start_time1;
+    double true_answer = 4.5;
+    if (rank == 0) {
+        ASSERT_LE(std::abs(res - true_answer), 0.001);
+        std::cout <<"parall integral :   " << res << std::endl;
+        std::cout <<"not parall integral :   " << res1 << std::endl;
+        std::cout << std::fixed << std::showpoint;
+        std::cout << std::setprecision(10);
+        std::cout << "Time Paral = " << time_paral <<
+        std::endl << "Time not Paral  = " << time_notParal << std::endl;
+    }
+}
+TEST(Integral, Test_func1_mega_count) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double start_time =  MPI_Wtime();
+    double res = get_Paral_Integral(func1, 1, 2, 3, 4, 5, 6, 500);
+    double end_time = MPI_Wtime();
+    double time_paral = end_time - start_time;
+    double start_time1 =  MPI_Wtime();;
+    double res1 = get_Integral(func1, 1, 2, 3, 4, 5, 6, 500);
+    double end_time1 = MPI_Wtime();
+    double time_notParal = end_time1 - start_time1;
+    double true_answer = 4.5;
+    if (rank == 0) {
+        ASSERT_LE(std::abs(res - true_answer), 0.001);
+        std::cout <<"parall integral :   " << res << std::endl;
+        std::cout <<"not parall integral :   " << res1 << std::endl;
+        std::cout << std::fixed << std::showpoint;
+        std::cout << std::setprecision(10);
+        std::cout << "Time Paral = " << time_paral <<
+        std::endl << "Time not Paral  = " << time_notParal << std::endl;
+    }
+}
+TEST(Integral, Test_func2) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double start_time =  MPI_Wtime();
+    double res = get_Paral_Integral(func2, 1, 5, 3, 12, 5, 7, 50);
+    double end_time = MPI_Wtime();
+    double time_paral = end_time - start_time;
+    double start_time1 =  MPI_Wtime();;
+    double res1 = get_Integral(func2, 1, 5, 3, 12, 5, 7, 50);
+    double end_time1 = MPI_Wtime();
+    double time_notParal = end_time1 - start_time1;
+    double true_answer = 4.48836967855013;
+    if (rank == 0) {
+        ASSERT_LE(std::abs(res - true_answer), 0.001);
+        std::cout <<"parall integral :   " << res << std::endl;
+        std::cout <<"not parall integral :   " << res1 << std::endl;
+        std::cout << std::fixed << std::showpoint;
+        std::cout << std::setprecision(10);
+        std::cout << "Time Paral = " << time_paral <<
+        std::endl << "Time not Paral  = " << time_notParal << std::endl;
+    }
+}
+TEST(Integral, Test_func2_mega_count) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double start_time =  MPI_Wtime();
+    double res = get_Paral_Integral(func2, 1, 5, 3, 12, 5, 7, 500);
+    double end_time = MPI_Wtime();
+    double time_paral = end_time - start_time;
+    double start_time1 =  MPI_Wtime();;
+    double res1 = get_Integral(func2, 1, 5, 3, 12, 5, 7, 500);
+    double end_time1 = MPI_Wtime();
+    double time_notParal = end_time1 - start_time1;
+    double true_answer = 4.48836967855013;
+    if (rank == 0) {
+        ASSERT_LE(std::abs(res - true_answer), 0.001);
+        std::cout <<"parall integral :   " << res << std::endl;
+        std::cout <<"not parall integral :   " << res1 << std::endl;
+        std::cout << std::fixed << std::showpoint;
+        std::cout << std::setprecision(10);
+        std::cout << "Time Paral = " << time_paral <<
+        std::endl << "Time not Paral  = " << time_notParal << std::endl;
+    }
+}
+TEST(Integral, Test_func3) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double start_time =  MPI_Wtime();
+    double res = get_Paral_Integral(func3, 2, 5, 12, 15, 6, 11, 50);
+    double end_time = MPI_Wtime();
+    double time_paral = end_time - start_time;
+    double start_time1 =  MPI_Wtime();;
+    double res1 = get_Integral(func3, 2, 5, 12, 15, 6, 11, 50);
+    double end_time1 = MPI_Wtime();
+    double time_notParal = end_time1 - start_time1;
+    double true_answer = -1.28134502288645;
+    if (rank == 0) {
+        ASSERT_LE(std::abs(res - true_answer), 0.001);
+        std::cout <<"parall integral :   " << res << std::endl;
+        std::cout <<"not parall integral :   " << res1 << std::endl;
+        std::cout << std::fixed << std::showpoint;
+        std::cout << std::setprecision(10);
+        std::cout << "Time Paral = " << time_paral <<
+        std::endl << "Time not Paral  = " << time_notParal << std::endl;
+    }
+}
+TEST(Integral, Test_func3_mega_count) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double start_time =  MPI_Wtime();
+    double res = get_Paral_Integral(func3, 2, 5, 12, 15, 6, 11, 500);
+    double end_time = MPI_Wtime();
+    double time_paral = end_time - start_time;
+    double start_time1 =  MPI_Wtime();;
+    double res1 = get_Integral(func3, 2, 5, 12, 15, 6, 11, 500);
+    double end_time1 = MPI_Wtime();
+    double time_notParal = end_time1 - start_time1;
+    double true_answer = -1.28134502288645;
+    if (rank == 0) {
+        ASSERT_LE(std::abs(res - true_answer), 0.001);
+        std::cout <<"parall integral :   " << res << std::endl;
+        std::cout <<"not parall integral :   " << res1 << std::endl;
+        std::cout << std::fixed << std::showpoint;
+        std::cout << std::setprecision(10);
+        std::cout << "Time Paral = " << time_paral <<
+        std::endl << "Time not Paral  = " << time_notParal << std::endl;
+    }
+}
+
+
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    MPI_Init(&argc, &argv);
+
+    ::testing::AddGlobalTestEnvironment(new GTestMPIListener::MPIEnvironment);
+    ::testing::TestEventListeners& listeners = ::testing::UnitTest::GetInstance()->listeners();
+
+    listeners.Release(listeners.default_result_printer());
+    listeners.Release(listeners.default_xml_generator());
+
+    listeners.Append(new GTestMPIListener::MPIMinimalistPrinter);
+    return RUN_ALL_TESTS();
+}
+\end{lstlisting}
+
+\end{document}
