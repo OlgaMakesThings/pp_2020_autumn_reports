@@ -1,0 +1,566 @@
+\documentclass{report}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage[14pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+
+\geometry{a4paper,top=2cm,bottom=3cm,left=2cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+\setlist{nolistsep, itemsep=0.3cm,parsep=0pt}
+
+\lstset{language=C++,
+		basicstyle=\footnotesize,
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{red}\ttfamily,
+		commentstyle=\color{green}\ttfamily,
+		morecomment=[l][\color{magenta}]{\#}, 
+		tabsize=4,
+		breaklines=true,
+  		breakatwhitespace=true,
+  		title=\lstname,       
+}
+
+\makeatletter
+\renewcommand\@biblabel[1]{#1.\hfil}
+\makeatother
+
+\begin{document}
+
+\begin{titlepage}
+
+\begin{center}
+Министерство науки и высшего образования Российской Федерации
+\end{center}
+
+\begin{center}
+Федеральное государственное автономное образовательное учреждение высшего образования \\
+Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского
+\end{center}
+
+\begin{center}
+Институт информационных технологий, математики и механики
+\end{center}
+
+\vspace{4em}
+
+\begin{center}
+\textbf{\LargeОтчет по лабораторной работе} \\
+\end{center}
+\begin{center}
+\textbf{\Large«Алгоритм глобального поиска (Стронгина) для одномерных задач оптимизации.
+Распараллеливание по характеристикам»} \\
+\end{center}
+
+\vspace{4em}
+
+\newbox{\lbox}
+\savebox{\lbox}{\hbox{text}}
+\newlength{\maxl}
+\setlength{\maxl}{\wd\lbox}
+\hfill\parbox{7cm}{
+\hspace*{5cm}\hspace*{-5cm}\textbf{Выполнил:} \\ студент группы 381808-2 \\ Шульман Е. А.\\
+\\
+\hspace*{5cm}\hspace*{-5cm}\textbf{Проверил:}\\ доцент кафедры МОСТ, \\ кандидат технических наук \\ Сысоев А. В. \\
+}
+\vspace{\fill}
+
+\begin{center} Нижний Новгород \\ 2020 \end{center}
+
+\end{titlepage}
+
+\setcounter{page}{2}
+
+% Содержание
+\tableofcontents
+\newpage
+
+% Введение
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+Задача оптимизации – одна из важнейших составляющих многих инженерных задач. Найти оптимальное решение – означает найти наилучший, в смысле заданного критерия, вариант из всех возможных. При решении задачи оптимизации рассматривается некоторая функция, называемая целевой, и аргументы (параметры целевой функции), называемые параметрами оптимизации. По количеству независимых переменных различают задачи одномерной оптимизации и многомерной оптимизации. В данной лабораторной работе будут рассматриваться только одномерные задачи оптимищации. При этом задача нахождения максимума целевой функции сводится к задаче нахождения минимума путем замены функции f(x) на -f(x), поэтому в дальнейшем будем говорить только о поиске минимума функции.
+\newpage
+
+% Постановка задачи
+\section*{Постановка задачи}
+\addcontentsline{toc}{section}{Постановка задачи}
+Целью данной лабораторной работы является разработка последовательной и параллельной реализации алгоритма глобального поиска Стронгина для одномерных задач оптимизации.
+\par Агоритм глобального поиска Стронгина заключается в поиске точки \\ $x* \in [a, b]$ такой, что заданная функция в данной точке x* принимаент значение, которое минимально на всей области определения [a, b].
+\par Исходные данные: отрезок [a, b], эпсилон (точность алгоритма)  и параметр надежности r.
+\par Для реализации параллельной версии необходимо использовать средства MPI (Message Passing Interface). Для проверки корректности работы алгоритмов требуется использовать Google C++ Testing Framework.
+\newpage
+
+% Описание алгоритма
+\section*{Описание алгоритма}
+\addcontentsline{toc}{section}{Описание алгоритма}
+Алгоритм глобального поиска Стронгина для одномерных задач оптимизации заключается в следующем:
+\begin{itemize}
+\item Шаг 0: Задать $\varepsilon$ > 0 и r > 0.
+\item Шаг 1: Положить $x^1 = a$, $x^2 = b$. Вычислить $Q^1 = Q(x^1)$, $Q^2 = Q(x^2)$.
+\item Шаг 2: Упорядочить точки нижним индексом по возрастанию координаты:\\$a = x_{1} < x_{2} <$ ... $< x_{k} = b$.
+\item Шаг 3: Вычислить оценку $L_{k}$:
+\\$l_{k}$ = max \{$ |\Delta Q_{i}|/\Delta x_{i} : i = 1, ..., k-1$\}.
+\\$L_{k}$ =
+$\begin{cases}
+   rl_{k}, $ если $l_{k} > 0\\
+   1, $ если $l_{k} = 0
+ \end{cases}$
+\item Шаг 4: Определить подынтервал $[x_{t}; x_{t+1}]$ с минимальным значением характеристики $R_{i}$:
+\\$R_{t}$ = min \{ $R_{i}$ : i = 0, ..., k - 1 \}.
+\\$R_{i}$ = $\frac{Q_{i} + Q_{i + 1}}{2} - \frac{1 + ((\Delta Q_{i} \slash \Delta x_{i})\slash L_{k})^2}{2}L_{k}\frac{\Delta x_{i}}{2}$.
+\item Шаг 5: Если выполнен критерий останова $x_{t + 1} - x_{t} < \varepsilon$ прекратить вычисления и принять $Q_{k}^*$ и соотвествующую точку $x_{k}^*$ за оценку решения. Если критерий останова не выполнен, перейти на шаг 6.
+\item Шаг 6: Провести новое измерение в точке
+\\$x^{k+1} = \frac{x_{t} + x_{t + 1}}{2} - \frac{\Delta Q_{i}}{2L_{k}}$.
+\\$Q^{k+1} = Q(x^{k+1})$
+\item Шаг 7: Перейти на шаг 2.
+
+\end{itemize}
+\newpage
+
+% Описание схемы распараллеливания
+\section*{Описание схемы распараллеливания}
+\addcontentsline{toc}{section}{Описание схемы распараллеливания}
+В данной лабораторной работе требуется распараллелить алгоритм по характеристикам. Мы будем распараллеливать Шаг 3.
+\par Для распараллеливания алгоритма глобального поиска Стронгина для одномерных задач оптимизации по характеристикам необходимо на каждом шаге делить вектор точек на равные подвектора, количество которых равно количеству процессов. Так, если размер исходного вектора не делится нацело на количество процессов, тогда остаток будет обрабатывать процесс с рангом 0. Затем процесс с рангом 0 раздает другим процессам их часть вектора. Каждый процесс находит свой $L_{k}$.
+\par Следующим шагом каждый процесс отправляет найденный $L_{k}$ процессу c рангом 0, который в свою очередь сравнивает значение полученного $L_{k}$ со своим. Если полученное значение больше текущего, тогда процесс с рангом 0 обновляет значение $L_{k}$ на полученное.
+\newpage
+
+% Описание программной реализации
+\section*{Описание программной реализации}
+\addcontentsline{toc}{section}{Описание программной реализации}
+Последовательный алгоритм глобального поиска Стронгина вызывается с помощью функции:
+\begin{lstlisting}
+double SequentialPart(const double x1, const double x2, double (*fcnPtr)(double), double epsilon, double r);
+\end{lstlisting}
+\par В качестве входных параметров передаются: концы исследуемого интервала $(x1, x2)$, указатель на функцию, значение эпсилон и значение параметра надежности. Данная функция возвращает координату точки минимума.
+\par Параллельный алгоритм глобального поиска Стронгина вызывается с помощью функции:
+\begin{lstlisting}
+double ParallelPart(const double x1, const double x2, double (*fcnPtr)(double), double epsilon, double r);
+\end{lstlisting}
+\par В качестве входных параметров передаются: концы исследуемого интервала $(x1, x2)$, указатель на функцию, значение эпсилон и значение параметра надежности. Данная функция возвращает координату точки минимума.
+\par Функция double ParallelPart(...) в свою очередь вызывает для процесса с рангом 0 функцию double root(...), а для остальных процессов функцию void other(...).
+\begin{lstlisting}
+double root(const double x1, const double x2, double (*fcnPtr)(double), double epsilon, double r, int size);
+\end{lstlisting}
+\par В качестве входных параметров в функицию double root(...) передаются: концы исследуемого интервала $(x1, x2)$, указатель на функцию, значение эпсилон, значение параметра надежности и общее количество процессов. Данная функция возвращает координату точки минимума.
+\begin{lstlisting}
+void other(const double x1, const double x2, double (*fcnPtr)(double), double epsilon, double r);
+\end{lstlisting}
+\par В качестве входных параметров в функицию double other(...) передаются: концы исследуемого интервала $(x1, x2)$, указатель на функцию, значение эпсилон и значение параметра надежности. Данная функция ничего не возвращает.
+\newpage
+
+% Результаты экспериментов
+\section*{Результаты экспериментов}
+\addcontentsline{toc}{section}{Результаты экспериментов}
+Вычислительные эксперименты проводились на оборудовании со следующей аппаратной конфигурацией:
+
+\begin{itemize}
+\item Процессор: Intel Core i7-6700 CPU @ 3.40GHz, ядер: 4;
+\item Оперативная память: 8 ГБ DDR3;
+\item ОС: Microsoft Windows 10 Home, версия 20H2 сборка 19042.685.
+\end{itemize}
+
+\par Для проведения экспериментов производился поиск минимума для функции:
+\\
+\begin{center}
+$F(x) = 10 + x * sin(x)$
+\end{center}
+\begin{center}
+C параметрами: a = 1.0, b = 310.0, $\varepsilon$ = 0,00000001, r = 2.0.
+\end{center}
+
+\begin{table}[!h]
+\begin{center}
+\begin{tabular}{lllll}
+Процессы & Последовательно & Параллельно & Ускорение  \\
+1        & 101,582         & 102,167     & 0,99       \\
+2        & 105,868         & 88,0502     & 1,20       \\
+3        & 97,6323         & 83,2410     & 1,17       \\
+4        & 96,9813         & 79,7268     & 1,22       \\
+5        & 108,837         & 120,437     & 0,90       \\
+6        & 103,271         & 123,628     & 0,84       
+\end{tabular}
+\end{center}
+\caption{Результаты вычислительных экспериментов}
+\centering
+\end{table}
+
+\par По данным, полученным в результате экспериментов, можно сделать вывод о том, что параллельный случай работает действительно быстрее, чем последовательный. Однако можно заметить, что уже при 5 процессах появляются регрессии. Это объясняется переключениями между процессами и обменом данными между ними при парных операциях передачи сообщений.
+\par Следует отметить что наибольший прирост производительности параллельный алгоритм показывает на функциях, близких к константе, т.к. алгоритму необходимо сделать достаточно большое число шагов, чтобы обеспечить сходимость.
+\newpage
+
+% Заключение
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+В результате лабораторной работы были разработаны последовательная и параллельная реализация алгоритма глобального поиска Стронгина для одномерных задач оптимизации.
+\par Основной задачей данной лабораторной работы была реализация распараллеливания по характеристикам, которая должна была быть эффективнее последовательной. Эта задача была успешно достигнута, о чем говорят результаты экспериментов, проведенных в ходе работы. Они показывают, что параллельный вариант работает действительно быстрее, чем последовательный.
+\par Кроме того, были разработаны и доведены до успешного выполнения тесты, созданные для данного программного проекта с использованием Google C++ Testing Framework и необходимые для подтверждения корректности работы программы.
+\newpage
+
+% Литература
+\begin{thebibliography}{1}
+\addcontentsline{toc}{section}{Литература}
+\bibitem{Gorodetsky} Городецкий С.Ю. «Лекции по нелинейному математическому программированию». Нижний Новгород, 2020, 154-155 с. 
+\bibitem{Voevodin} Воеводин В.В. «Лекция 5. Технологии параллельного программирования.
+Message Passing Interface (MPI)»
+\\URL: \url {https://parallel.ru/vvv/mpi.html#p1} (дата обращения: 17.12.2020)
+\end{thebibliography}
+\newpage
+
+% Приложение
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+В данном разделе находится листинг всего кода, написанного в рамках лабораторной работы.
+\begin{lstlisting}
+// global_search_for_Strongin.h
+
+// Copyright 2020 Shulman Egor
+#ifndef MODULES_TASK_3_SHULMAN_E_GLOBAL_SEARCH_FOR_STRONGIN_GLOBAL_SEARCH_FOR_STRONGIN_H_
+#define MODULES_TASK_3_SHULMAN_E_GLOBAL_SEARCH_FOR_STRONGIN_GLOBAL_SEARCH_FOR_STRONGIN_H_
+
+double SequentialPart(const double x1, const double x2, double (*fcnPtr)(double),
+                                double epsilon, double r);
+
+double ParallelPart(const double x1, const double x2, double (*fcnPtr)(double),
+                                double epsilon, double r);
+
+double root(const double x1, const double x2, double (*fcnPtr)(double),
+                                double epsilon, double r, int size);
+
+void other(const double x1, const double x2, double (*fcnPtr)(double),
+                                double epsilon, double r);
+
+#endif  // MODULES_TASK_3_SHULMAN_E_GLOBAL_SEARCH_FOR_STRONGIN_GLOBAL_SEARCH_FOR_STRONGIN_H_
+\end{lstlisting}
+\newpage
+\begin{lstlisting}
+// global_search_for_Strongin.cpp
+
+// Copyright 2020 Shulman Egor
+#include <mpi.h>
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <cmath>
+#include "../../../modules/task_3/shulman_e_global_search_for_Strongin/global_search_for_Strongin.h"
+
+double SequentialPart(const double x1, const double x2, double (*fcnPtr)(double),
+                                    double epsilon, double r) {
+    if (x1 == x2)
+        throw "The intervals should be different";
+
+    // Step 1
+    std::vector<double> X;
+    X.push_back(x1);
+    X.push_back(x2);
+
+    while (1) {
+        // Step 2
+        std::sort(X.begin(), X.end());
+
+        // Step 3
+        double maxlk;
+        double Lk;
+        double templk;
+        for (int i = 0; i < static_cast<int>(X.size()) - 1; ++i) {
+            templk = (std::abs(fcnPtr(X.at(i + 1)) - fcnPtr(X.at(i)))) / (X.at(i + 1) - X.at(i));
+            if (i == 0)
+                maxlk = templk;
+            else
+                maxlk = maxlk < templk ? templk : maxlk;
+        }
+        Lk = maxlk == 0 ? 1.0 : r * maxlk;
+
+        // Step 4
+        int Rt = 0;
+        double minRi;
+        double tempRi;
+        for (int i = 0; i < static_cast<int>(X.size()) - 1; ++i) {
+            tempRi = ((fcnPtr(X.at(i)) + fcnPtr(X.at(i + 1))) / 2) -
+                            ((1 + pow((((fcnPtr(X.at(i + 1)) - fcnPtr(X.at(i))) / (X.at(i + 1) -
+                                    X.at(i))) / Lk), 2)) / 2) * Lk * ((X.at(i + 1) - X.at(i)) / 2);
+            if (i == 0) {
+                minRi = tempRi;
+            } else {
+                if (minRi > tempRi) {
+                    minRi = tempRi;
+                    Rt = i;
+                }
+            }
+        }
+
+        // Step 5
+        if (X.at(Rt + 1) - X.at(Rt) <= epsilon) {
+            return X.at(Rt + 1);
+        }
+
+        // Step 6
+        X.push_back((X.at(Rt) + X.at(Rt + 1)) / 2 - (fcnPtr(X.at(Rt + 1)) - fcnPtr(X.at(Rt))) / (2 * Lk));
+    }
+}
+
+double root(const double x1, const double x2, double (*fcnPtr)(double), double epsilon, double r, int size) {
+    MPI_Status status;
+
+    // Step 1
+    std::vector<double> X;
+    X.push_back(x1);
+    X.push_back(x2);
+
+    while (1) {
+        // Step 2
+        std::sort(X.begin(), X.end());
+
+        int block = static_cast<int>(X.size() - 1) / size;
+        int remainder = static_cast<int>(X.size() - 1) % size;
+
+        for (int i = 1; i < size; ++i)
+            MPI_Send(&X[0] + remainder + i * block, block + 1, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
+
+        // Step 3
+        double maxlk;
+        double Lk;
+        double templk;
+        for (int i = 0; i < block + remainder; ++i) {
+            templk = (std::abs(fcnPtr(X.at(i + 1)) - fcnPtr(X.at(i)))) / (X.at(i + 1) - X.at(i));
+            if (i == 0)
+                maxlk = templk;
+            else
+                maxlk = maxlk < templk ? templk : maxlk;
+        }
+        Lk = maxlk <= 0 ? 1.0 : r * maxlk;
+
+        if (block > 0) {
+            for (int i = 1; i < size; i++) {
+                MPI_Recv(&templk, 1, MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+                Lk = Lk < templk ? templk : Lk;
+            }
+        }
+
+        // Step 4
+        int Rt = 0;
+        double minRi;
+        double tempRi;
+        for (int i = 0; i < static_cast<int>(X.size()) - 1; ++i) {
+            tempRi = ((fcnPtr(X.at(i)) + fcnPtr(X.at(i + 1))) / 2) -
+                            ((1 + pow((((fcnPtr(X.at(i + 1)) - fcnPtr(X.at(i))) /
+                                    (X.at(i + 1) - X.at(i))) / Lk), 2)) / 2) *
+                                            Lk * ((X.at(i + 1) - X.at(i)) / 2);
+            if (i == 0) {
+                minRi = tempRi;
+            } else {
+                if (minRi > tempRi) {
+                    minRi = tempRi;
+                    Rt = i;
+                }
+            }
+        }
+
+        // Step 5
+        if (X.at(Rt + 1) - X.at(Rt) <= epsilon) {
+            for (int i = 1; i < size; ++i)
+                MPI_Send(&X[0], block + 1, MPI_DOUBLE, i, 1, MPI_COMM_WORLD);
+            return X.at(Rt + 1);
+        }
+
+        // Step 6
+        double newX = (X.at(Rt) + X.at(Rt + 1)) / 2 - (fcnPtr(X.at(Rt + 1)) - fcnPtr(X.at(Rt))) / (2 * Lk);
+        if (newX < X.at(0)) {
+            Rt = 0;
+            newX = (X.at(Rt) + X.at(Rt + 1)) / 2 - (fcnPtr(X.at(Rt + 1)) - fcnPtr(X.at(Rt))) / (2 * Lk);
+        }
+        if (newX > X.at(static_cast<int>(X.size()) - 1)) {
+            Rt = static_cast<int>(X.size()) - 2;
+            newX = (X.at(Rt) + X.at(Rt + 1)) / 2 - (fcnPtr(X.at(Rt + 1)) - fcnPtr(X.at(Rt))) / (2 * Lk);
+        }
+        X.push_back(newX);
+    }
+}
+
+void other(const double x1, const double x2, double (*fcnPtr)(double), double epsilon, double r) {
+    int block;
+    MPI_Status status;
+    while (1) {
+        MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        MPI_Get_count(&status, MPI_DOUBLE, &block);
+
+        std::vector<double> X(block + 1);
+        MPI_Recv(&X[0], block + 1, MPI_DOUBLE, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+
+        if (status.MPI_TAG == 1)
+            return;
+
+        double localmaxlk, localLk = 1.0, localtemplk;
+        if (block != 0) {
+            for (int i = 0; i < static_cast<int>(X.size()) - 1; ++i) {
+                localtemplk = (std::abs(fcnPtr(X.at(i + 1)) - fcnPtr(X.at(i)))) / (X.at(i + 1) - X.at(i));
+                if (i == 0)
+                    localmaxlk = localtemplk;
+                else
+                    localmaxlk = localmaxlk < localtemplk ? localtemplk : localmaxlk;
+            }
+            localLk = localmaxlk == 0 ? 1.0 : r * localmaxlk;
+        }
+        MPI_Send(&localLk, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+    }
+}
+
+
+double ParallelPart(const double x1, const double x2, double (*fcnPtr)(double),
+    double epsilon, double r) {
+    if (x1 == x2)
+        throw "The intervals should be different";
+
+    double result;
+    int size, rank;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    if (rank == 0) {
+        result = root(x1, x2, fcnPtr, epsilon, r, size);
+        return result;
+    } else {
+        other(x1, x2, fcnPtr, epsilon, r);
+        return 0.0;
+    }
+}
+\end{lstlisting}
+\newpage
+\begin{lstlisting}
+// main.cpp
+
+// Copyright 2020 Shulman Egor
+#include <gtest-mpi-listener.hpp>
+#include <gtest/gtest.h>
+#include <cmath>
+#include "./global_search_for_Strongin.h"
+
+inline double Fun(double x) {
+    return (sqrt(1+3*pow(cos(x),2))+cos(10*x));
+}
+
+TEST(Parallel_Operations_MPI, SpeedTestSeq) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double (*fcnPtr)(double) = Fun;
+
+  MPI_Barrier(MPI_COMM_WORLD);
+    if (rank == 0) {
+    double t1 = MPI_Wtime();
+        double Result = SequentialPart(1., 50.0, fcnPtr, 0.00001, 2);
+    double t2 = MPI_Wtime();
+    std::cout << "Sequential Time :" << t2 - t1 << std::endl;
+        double Q = 0;
+        ASSERT_NEAR(fcnPtr(Result), Q, 0.01);
+    }
+}
+
+TEST(Parallel_Operations_MPI, SpeedTestPar) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double (*fcnPtr)(double) = Fun;
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  double t1 = MPI_Wtime();
+    double Result = ParallelPart(1., 50.0, fcnPtr, 0.00001, 2);
+  double t2 = MPI_Wtime();
+  if (rank == 0) {
+    std::cout << "Parallel Time :" << t2 - t1 << std::endl;
+        double Q = 0;
+        ASSERT_NEAR(fcnPtr(Result), Q, 0.01);
+    }
+}
+
+inline double Function(double x) {
+    return (10 + x*sin(x));
+}
+
+TEST(Parallel_Operations_MPI, SequentialFunc1) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    double (*fcnPtr)(double) = Function;
+    if (rank == 0) {
+        double Result = SequentialPart(1., 310.0, fcnPtr, 1e-3, 2);
+        double Q = -296.307;
+        ASSERT_NEAR(fcnPtr(Result), Q, 0.1);
+    }
+}
+
+TEST(Parallel_Operations_MPI, ParallelFunc1) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    double (*fcnPtr)(double) = Function;
+    double Result = ParallelPart(1., 310.0, fcnPtr, 1e-3, 2);
+    if (rank == 0) {
+        double Q = -296.307;
+        ASSERT_NEAR(fcnPtr(Result), Q, 0.1);
+    }
+}
+
+TEST(Parallel_Operations_MPI, ThrowEquality) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    double (*fcnPtr)(double) = Function;
+    if (rank == 0) {
+        EXPECT_ANY_THROW(ParallelPart(1., 1., fcnPtr, 1e-3, 2));
+    }
+}
+
+inline double Function2(double x) {
+    return (x + 8 / pow(x, 4));
+}
+
+TEST(Parallel_Operations_MPI, Eps_3_Func2) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    double (*fcnPtr)(double) = Function2;
+    double Result = ParallelPart(1., 100., fcnPtr, 1e-3, 2);
+
+    if (rank == 0) {
+        double Q = 2.5;
+        ASSERT_NEAR(fcnPtr(Result), Q, 0.1);
+    }
+}
+
+TEST(Parallel_Operations_MPI, Eps_5_Func2) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    double (*fcnPtr)(double) = Function2;
+    double Result = ParallelPart(1., 100., fcnPtr, 1e-5, 2);
+
+    if (rank == 0) {
+        double Q = 2.5;
+        ASSERT_NEAR(fcnPtr(Result), Q, 0.1);
+    }
+}
+
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    MPI_Init(&argc, &argv);
+
+    ::testing::AddGlobalTestEnvironment(new GTestMPIListener::MPIEnvironment);
+    ::testing::TestEventListeners& listeners =
+        ::testing::UnitTest::GetInstance()->listeners();
+
+    listeners.Release(listeners.default_result_printer());
+    listeners.Release(listeners.default_xml_generator());
+
+    listeners.Append(new GTestMPIListener::MPIMinimalistPrinter);
+    return RUN_ALL_TESTS();
+}
+\end{lstlisting}
+\end{document}
