@@ -1,0 +1,660 @@
+\documentclass{report}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage[14pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+
+\geometry{a4paper,top=2cm,bottom=3cm,left=2cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+\setlist{nolistsep, itemsep=0.3cm,parsep=0pt}
+
+\lstset{language=C++,
+		basicstyle=\footnotesize,
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{red}\ttfamily,
+		commentstyle=\color{green}\ttfamily,
+		morecomment=[l][\color{magenta}]{\#}, 
+		tabsize=4,
+		breaklines=true,
+  		breakatwhitespace=true,
+  		title=\lstname,       
+}
+
+\makeatletter
+\renewcommand\@biblabel[1]{#1.\hfil}
+\makeatother
+
+\begin{document}
+
+\begin{titlepage}
+
+\begin{center}
+Министерство науки и высшего образования Российской Федерации
+\end{center}
+
+\begin{center}
+Федеральное государственное автономное образовательное учреждение высшего образования \\
+Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского
+\end{center}
+
+\begin{center}
+Институт информационных технологий, математики и механики
+\end{center}
+
+\vspace{4em}
+
+\begin{center}
+\textbf{\LargeОтчет по лабораторной работе} \\
+\end{center}
+\begin{center}
+\textbf{\Large«"Умножение разреженных матриц. Элементы типа double. 
+Формат хранения матрицы – строковый (CRS)."»} \\
+\end{center}
+
+\vspace{4em}
+
+\newbox{\lbox}
+\savebox{\lbox}{\hbox{text}}
+\newlength{\maxl}
+\setlength{\maxl}{\wd\lbox}
+\hfill\parbox{7cm}{
+\hspace*{5cm}\hspace*{-5cm}\textbf{Выполнил:} \\ студент группы 381808-2 \\ Жафяров О. И.\\
+\\
+\hspace*{5cm}\hspace*{-5cm}\textbf{Проверил:}\\ доцент кафедры МОСТ, \\ кандидат технических наук \\ Сысоев А. В.\\
+}
+\vspace{\fill}
+
+\begin{center} Нижний Новгород \\ 2020 \end{center}
+
+\end{titlepage}
+
+\setcounter{page}{2}
+
+% Содержание
+\tableofcontents
+\newpage
+
+% Введение
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+Алгебра разреженных матриц – важный раздел математики, имеющий очевидное практическое применение. Разреженные матрицы возникают естественным образом при постановке и решении задач из разных научных и инженерных областей: при постановке и решении оптимизационных задач, при численном решении дифференциальных уравнений, в теории графов и в других случаях.
+
+\par Встречаются разные формулировки при определении разреженной матрицы. На практике классификация матрицы зависит не только от количества ненулевых элементов, но и от: размера матрицы, распределения ненулевых элементов и архитектуры конкретной вычислительной системы и используемых алгоритмов. Важно не просто дать матрице звучное название. Важно определиться с выбором структуры хранения.
+
+\par Эффективные методы хранения и обработки разреженных матриц на протяжении последних десятилетий вызывают интерес у широкого круга исследователей. Для учета разреженной структуры приходится существенно усложнять как методы хранения, так и алгоритмы обработки. Многие тривиальные с точки зрения программирования алгоритмы в разреженном случае становятся весьма сложными. Для оптимизации производительности приходится разрабатывать нетривиальные алгоритмы и использовать возможности современной аппаратуры.
+
+\par В данном лабораторной работе будет рассмотрено умножение разреженных матриц, содержащие вещественные числа, в строчном формате. Подобный формат хранения матриц отличается от обычных тем, что хранит исключительно значения ненулевых элементов в координатном формате. Причем процесс умножения таких матриц требуется распараллелить. Следовательно необходимо разработать наиболее оптимальный вариант параллельного умножения разреженных матриц.
+\newpage
+
+% Постановка задачи
+\section*{Постановка задачи}
+\addcontentsline{toc}{section}{Постановка задачи}
+Пусть A и B – квадратные матрицы размера N x N, в которых процент ненулевых элементов мал (в этом случае в каждой строчке матрицы будет ровно один ненулевой элемент). Будем считать, что элементы матриц A и B – вещественные числа (double). Требуется найти матрицу C = A * B, где символ * соответствует матричному умножению. Нередко в процессе умножения двух разреженных матриц получается плотная матрица. В рамках данной работы предполагается, что матрица C также является разреженной.
+\par
+Один из наиболее простых для понимания форматов хранения разреженных матриц - координатный формат. Элементы матрицы и ее структура хранятся в трех массивах, содержащих значения, их Х и Y координаты. Мы же будем использовать формат хранения CRS, который призван устранить некоторые недоработки координатного представления. Так, по-прежнему используются три массива. Первый массив хранит значения элементов построчно
+(строки рассматриваются по порядку сверху вниз). Второй – номера столбцов для каждого элемента. Третий заменяет номера строк, используемые в координатном формате, на индекс начала каждой строки (количество элементов массива равно N + 1).
+\par
+В рамках лабораторной работы необходимо реализовать последовательную и параллельную реализации умножения разреженных матриц A и B в строчном формате хранения, проверить корректность работы алгоритмов, провести эксперименты для оценки времени. По полученным результатам сделать выводы.
+\par Для реализации параллельной версии необходимо использовать средства MPI. Для проверки корректности работы алгоритмов требуется использовать Google C++ Testing Framework.
+\newpage
+
+% Метод решения
+\section*{Метод решения}
+\addcontentsline{toc}{section}{Метод решения}
+Попробуем выполнить умножение по определению. Тогда необходимо вычислять скалярные произведения строки одной матрицы и столбца другой матрицы. При вычислении скалярных произведений в строчном формате неудобно выделять столбец. Возможное решение проблемы – транспонировать матрицу B (что и будем делать).
+\par Необходимо решить еще одну проблему. Необходимо избежать перепаковок при формировании разреженного представления матрицы С. Будем умножать каждую строку матрицы A на все столбцы транспонированной матрицы B. Тогда матрица C заполняется последовательно.
+\par Алгоритм умножения разреженных матриц для вещественных чисел в строков формате хранения заключается в следующем:
+\begin{itemize}
+\item Реализовать транспонирование разреженной матрицы и применить его к матрице B.
+\item Инициализировать структуру данных для матрицы C, обеспечить возможность пополнения ее элементами.
+\item Последовательно перемножить каждую строку матрицы A на каждую из строк транспонированной матрицы B, записывая в C полученные результаты и формируя ее структуру. При умножении строк реализовать сопоставление с целью выделения пар ненулевых элементов.
+\end{itemize}
+\par В процессе вычисления скалярного произведения в точной арифметике может получиться нуль, не только в том случае, когда при сопоставлении векторов соответствующих друг другу пар не обнаружилось, но и просто как естественный результат. Нули, получившиеся в процессе вычислений, можно хранить в матрице C.
+\par Если создать нулевую матрицу, а далее добавлять туда по одному элементу, выбирая их из CRS - структуры исходной матрицы, получим перепаковки. Нужно формировать транспонированную матрицу построчно. Для этого можно брать столбцы исходной матрицы и создавать из них строки результирующей матрицы. Выделить из CRS-матрицы столбец не так просто. В качестве решения воспользуемся алгоритмом транспонирования Густавсона. Из недостатков обнаруживается - использование дополнительной памяти, но в итоге устраняем перепаковки.
+\newpage
+
+% Схема распараллеливания
+\section*{Схема распараллеливания}
+\addcontentsline{toc}{section}{Схема распараллеливания}
+Для распараллеливания алгоритма умножения CRS-матриц необходимо, в-первую очередь, удостовериться в том, что возможно разделить CRS-матрицу А на равные подмассивы, количество которых равно количеству процессов. В противном случае запускается последовательный алгоритм умножения.
+\par Следующим шагом станет подсчет количества ненулевых элементов, который должен будет принять корневый процесс от остальных после параллельного умножения. 
+\par Каждый процесс кроме корневого узнает размер матрицы А, который он должен использовать при умножении с транспонированной матрицей В.
+\par В каждом процесс производится алгоритм последовательного умножения CRS-матриц.
+\par В конечном итоге, каждый процесс отправляет свои результаты корневому процессу, где все собирается в результирующую CRS-матрицу С.
+\newpage
+
+% Описание программной реализации
+\section*{Описание программной реализации}
+\addcontentsline{toc}{section}{Описание программной реализации}
+Алгоритм последовательного умножения CRS-матриц вызывается с помощью функции:
+\begin{lstlisting}
+void Multiplication(MatrixCRS* A, MatrixCRS* B, MatrixCRS* Result);
+\end{lstlisting}
+\par В качестве входных параметров передаются указатели на структуру CRS-матриц А и В, которые необходимо перемножить. Результат данной операции записывается в CRS-матрицу С.
+\par Инициализация CRS-матрицы выполняется при помощи функции:
+\begin{lstlisting}
+void InitializeMatrix(int Size, int No_empty, MatrixCRS* Matrix);
+\end{lstlisting}
+\par В качестве входных данных передается размер матрицы, число ненулевых элементов и указатель на CRS-матрицу.
+\par Алгоритм параллельного умножения CRS-матриц представляет собой вызов функции:
+\begin{lstlisting}
+void ParallelMultiplication(int process_rank, int Size, MatrixCRS* A, MatrixCRS* B, MatrixCRS* Result);
+\end{lstlisting}
+\par В качестве входных параметров передается номер процесса, размер матрицы, указатели на CRS-матрицы А, В и С.
+\par Разделение матрицы А для последующей операции умножения реализовано в функции:
+\begin{lstlisting}
+void Split(int process_rank, int Size, MatrixCRS* A, MatrixCRS* tmp, int No_empty_in_row);
+\end{lstlisting}
+\par На вход требуется подать номер процесса, которому нужно отправить фиксированный размер от матрицы А, размер матрицы, указатель на CRS-матрицу А, которую необходимо разделить, указатель на CRS-матрицу tmp, в которую записывает фиксированный размер для определенного процесса, число ненулевых элементов в каждой строчке матрицы.
+\newpage
+\par Алгоритм транспонирования матрицы (Густавсон) реализован в функции:
+\begin{lstlisting}
+MatrixCRS Transpose(int Size, int Nonzero, int Nonzero_in_row, MatrixCRS* Matrix);
+\end{lstlisting}
+\par В качестве входных данных поступают размер матрицы, число ненулевых элементов как общий их размер, так и в каждой строчке, указатель на матрицу, которую нужно транспонировать.
+\par Генерация ненулевых элементов происходит в функциях:
+\begin{lstlisting}
+void RandomMatrixCRS(int Size, int No_empty, MatrixCRS* Matrix);
+double Generate(int min, int max);
+\end{lstlisting}
+\newpage
+
+% Результаты экспериментов
+\section*{Результаты экспериментов}
+\addcontentsline{toc}{section}{Результаты экспериментов}
+Для подтверждения корректности в программе представлен набор тестов, разработанных с помощью использования Google C++ Testing Framework. Набор представляет из себя тесты, которые проверяют корректность корректность вычислений, а также эффективность. Успешное прохождение всех тестов доказывает корректность работы программного комплекса.
+\par Вычислительные эксперименты для оценки эффективности параллельного умножения CRS-матриц проводились на оборудовании со следующей аппаратной конфигурацией:
+
+\begin{itemize}
+\item Процессор: AMD Ryzen 7 3800X 8-Core Processor, 3893 МГц;
+\item Оперативная память: 16332 МБ (DDR4), 3200 MHz;
+\item ОС: Microsoft Windows 10 Pro.
+\end{itemize}
+
+\par Для проведения экспериментов производилось умножение двух CRS-матриц со 
+\verb|100 000 000| значениями в каждом. 
+\par Результаты экспериментов представлены в Таблице 1.
+
+\begin{table}[!h]
+\caption{Результаты вычислительных экспериментов}
+\centering
+\begin{tabular}{lllll}
+Процессы & Последовательно & Параллельно & Разница  \\
+1        & 0.76            & 0.77        & -0.01       \\
+2        & 0.76            & 0.4         & +0.36       \\
+3        & 0.76            & 0.27        & +0.50       \\
+4        & 0.76            & 0.21        & +0.56       \\
+5        & 0.76            & 0.17        & +0.59       \\
+6        & 0.76            & 0.14        & +0.62       \\
+7        & 0.76            & 0.12        & +0.64       \\
+8        & 0.76            & 0.11        & +0.65
+\end{tabular}
+\end{table}
+
+\par По данным, полученным в результате экспериментов, можно сделать вывод о том, что параллельный случай работает действительно быстрее, чем последовательный. Кроме того, можно сделать вывод, что при данной аппаратной конфигурации наиболее эффективным будет использование не менее 6 процессов для параллельного умножения CRS-матриц.
+\newpage
+
+% Заключение
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+В результате лабораторной работы были разработаны последовательная реализация умножения CRS-матриц и параллельной с использованием последовательного алгоритма.
+\par Основной задачей данной лабораторной работы была реализация параллельной версии, которая должна была быть эффективнее последовательной. Эта задача была успешно достигнута, о чем говорят результаты экспериментов, проведенных в ходе работы. Они показывают, что параллельный вариант работает действительно быстрее, чем последовательный.
+\par Кроме того, были разработаны и доведены до успешного выполнения тесты, созданные для данного программного проекта с использованием Google C++ Testing Framework.
+\newpage
+
+% Список литературы
+\begin{thebibliography}{1}
+\addcontentsline{toc}{section}{Список литературы}
+\bibitem{Sidnev} Сиднев А.А., Сысоев А.В., Мееров И.Б «Лабораторная работа №7. Оптимизация вычислительно трудоемкого программного модуля для архитектуры Intel Xeon Phi. Линейные сортировки». Нижний Новгород, 2007, 56 с. 
+\bibitem{parallel} Parallel: Лаборатория Параллельных информационных технологий НИВЦ МГУ [Электронный ресурс] // URL: \url {https://parallel.ru/vvv/mpi.html} (дата обращения: 28.11.2020)
+\bibitem{Algolist} Algolist: Алгоритмы, методы, исходники [Электронный ресурс] // URL: \url {http://algolist.manual.ru/sort/radix_sort.php} (дата обращения: 28.11.2020)
+\end{thebibliography}
+\newpage
+
+% Приложение
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+В данном разделе находится листинг всего кода, написанного в рамках лабораторной работы.
+\begin{lstlisting}
+// crs_matrix.h
+
+// Copyright 2020 Zhafyarov Oleg
+#ifndef MODULES_TASK_3_ZHAFYAROV_O_CRS_MATRIX_CRS_MATRIX_H_
+#define MODULES_TASK_3_ZHAFYAROV_O_CRS_MATRIX_CRS_MATRIX_H_
+#include <vector>
+struct MatrixCRS {
+  int Size;
+  int No_empty;
+  std::vector<double> Value;
+  std::vector<int> Col;
+  std::vector<int> Pointer;
+};
+
+void InitializeMatrix(int Size, int No_empty, MatrixCRS* Matrix);
+
+double Generate(int min, int max);
+
+void RandomMatrixCRS(int Size, int No_empty, MatrixCRS* Matrix);
+
+MatrixCRS Transpose(int Size, int Nonzero, int Nonzero_in_row, MatrixCRS* Matrix);
+
+void Multiplication(MatrixCRS* A, MatrixCRS* B, MatrixCRS* Result);
+
+void Split(int process_rank, int Size, MatrixCRS* mtx1, MatrixCRS* mtx2, int No_empty_in_row);
+
+void RowIndexProc(int N, MatrixCRS* mtx, int cntInRow);
+
+void ParallelMultiplication(int process_rank, int Size, MatrixCRS* A, MatrixCRS* B, MatrixCRS* Result);
+
+#endif  // MODULES_TASK_3_ZHAFYAROV_O_CRS_MATRIX_CRS_MATRIX_H_
+\end{lstlisting}
+\begin{lstlisting}
+// crs_matrix.cpp
+
+  // Copyright 2020 Zhafyarov Oleg
+#include <mpi.h>
+#include <cmath>
+#include <vector>
+#include <random>
+#include <iostream>
+#include <ctime>
+#include "../../../modules/task_3/zhafyarov_o_crs_matrix/crs_matrix.h"
+
+int process_number;
+
+void InitializeMatrix(int Size, int No_empty, MatrixCRS* Matrix) {
+  Matrix->Size = Size;
+  Matrix->No_empty = No_empty;
+  Matrix->Value = std::vector<double>(static_cast<size_t>(No_empty));
+  Matrix->Col = std::vector<int>(static_cast<size_t>(No_empty));
+  Matrix->Pointer = std::vector<int>(static_cast<size_t>(Size + 1));
+}
+
+double Generate(int min, int max) {
+  static int count = 0;
+  std::mt19937 generator(count++);
+  std::uniform_int_distribution<> distribution{ min, max };
+  double res = distribution(generator) / 4.;
+  return res;
+}
+
+void RandomMatrixCRS(int Size, int No_empty, MatrixCRS* Matrix) {
+  int f, tmp;
+  for (int i = 0; i < Size; i++) {
+    for (int j = 0; j < No_empty; j++) {
+      do {
+        Matrix->Col[i * No_empty + j] = Generate(1, Size * 4);
+        f = 0;
+        for (int k = 0; k < j; k++) {
+          if (Matrix->Col[i * No_empty + j] == Matrix->Col[i * No_empty + k]) {
+            f = 1;
+          }
+        }
+      } while (f == 1);
+    }
+    for (int j = 0; j < No_empty - 1; j++) {
+      for (int k = 0; k < No_empty - 1; k++) {
+        if (Matrix->Col[i * No_empty + k] > Matrix->Col[i * No_empty + k + 1]) {
+          tmp = Matrix->Col[i * No_empty + k];
+          Matrix->Col[i * No_empty + k] = Matrix->Col[i * No_empty + k + 1];
+          Matrix->Col[i * No_empty + k + 1] = tmp;
+        }
+      }
+    }
+  }
+  for (int i = 0; i < No_empty * Size; i++) {
+    Matrix->Value[i] = Generate(5, 25);
+  }
+  int c = 0;
+  for (int i = 0; i <= Size; i++) {
+    Matrix->Pointer[i] = c;
+    c += No_empty;
+  }
+}
+
+MatrixCRS Transpose(int Size, int Nonzero, int Nonzero_in_row, MatrixCRS* Matrix) {
+  MatrixCRS Matrix_T;
+  InitializeMatrix(Size, Nonzero, &Matrix_T);
+
+  for (int i = 0; i < Matrix->No_empty; i++) {
+    Matrix_T.Pointer[Matrix->Col[i] + 1]++;
+  }
+
+  int Index_tmp = 0;
+  for (int i = 1; i <= Matrix->Size; i++) {
+    int tmp = Matrix_T.Pointer[i];
+    Matrix_T.Pointer[i] = Index_tmp;
+    Index_tmp = Index_tmp + tmp;
+  }
+  for (int i = 0; i < Matrix->Size; i++) {
+    int j1 = Matrix->Pointer[i];
+    int j2 = Matrix->Pointer[i + 1];
+    int Col = i;
+    for (int j = j1; j < j2; j++) {
+      double V = Matrix->Value[j];
+      int Row_index = Matrix->Col[j];
+      int IIndex = Matrix_T.Pointer[Row_index + 1];
+      Matrix_T.Value[IIndex] = V;
+      Matrix_T.Col[IIndex] = Col;
+      Matrix_T.Pointer[Row_index + 1]++;
+    }
+  }
+  return Matrix_T;
+}
+
+void Multiplication(MatrixCRS* A, MatrixCRS* B, MatrixCRS* Result) {
+  int N = A->Size; int N2 = B->Size;
+  double sum;
+
+  std::vector<double> values;
+  std::vector<int> col;
+  std::vector<int> pointer;
+
+  int rowNZ; pointer.push_back(0);
+  for (int i = 0; i < N; i++) {
+    rowNZ = 0;
+    for (int j = 0; j < N2; j++) {
+      sum = 0.0;
+      for (int k = A->Pointer[i]; k < A->Pointer[i + 1]; k++) {
+        for (int l = B->Pointer[j]; l < B->Pointer[j + 1]; l++) {
+          if (A->Col[k] == B->Col[l]) {
+            if (A->Col[k] == B->Col[l]) {
+              sum += A->Value[k] * B->Value[l];
+            }
+            break;
+          }
+        }
+      }
+
+      if (fabs(sum) > 0) {
+        col.push_back(j);
+        values.push_back(sum);
+        rowNZ++;
+      }
+    }
+    pointer.push_back(rowNZ + pointer[i]);
+  }
+  InitializeMatrix(N, col.size(), Result);
+
+  for (int j = 0; j < static_cast<int>(col.size()); j++) {
+    Result->Col[j] = col[j];
+    Result->Value[j] = values[j];
+  }
+  for (int i = 0; i <= N; i++) {
+    Result->Pointer[i] = pointer[i];
+  }
+}
+
+void Split(int process_rank, int Size, MatrixCRS* mtx1, MatrixCRS* mtx2, int No_empty_in_row) {
+  int Left_send_rows = Size;
+  int Send_number_row = (Size / process_number);
+  int* Send_size_for_process = new int[process_number];
+  int* Recv_index_for_process = new int[process_number];
+
+  Send_size_for_process[0] = Send_number_row * No_empty_in_row;
+  Recv_index_for_process[0] = 0;
+
+  for (int i = 1; i < process_number; i++) {
+    Left_send_rows -= Send_number_row;
+    Send_number_row = Left_send_rows / (process_number - i);
+    Send_size_for_process[i] = Send_number_row * No_empty_in_row;
+    Recv_index_for_process[i] = Recv_index_for_process[i - 1] + Send_size_for_process[i - 1];
+  }
+
+  MPI_Scatterv(&mtx1->Value.at(0), Send_size_for_process, Recv_index_for_process, MPI_DOUBLE,
+    &mtx2->Value.at(0), Send_size_for_process[process_rank], MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+  MPI_Scatterv(&mtx1->Col.at(0), Send_size_for_process, Recv_index_for_process, MPI_INT,
+    &mtx2->Col.at(0), Send_size_for_process[process_rank], MPI_INT, 0, MPI_COMM_WORLD);
+
+  MPI_Scatterv(&mtx1->Pointer.at(0), Send_size_for_process, Recv_index_for_process, MPI_INT,
+    &mtx2->Pointer.at(0), Send_size_for_process[process_rank], MPI_INT, 0, MPI_COMM_WORLD);
+}
+
+void RowIndexProc(int N, MatrixCRS* mtx, int cntInRow) {
+  mtx[0].Pointer[0] = 0;
+  for (int i = 1; i < N + 1; i++)
+    mtx[0].Pointer[i] = mtx[0].Pointer[i - 1] + cntInRow;
+}
+
+void ParallelMultiplication(int process_rank, int Size, MatrixCRS* A, MatrixCRS* B, MatrixCRS* Result) {
+  MPI_Comm_size(MPI_COMM_WORLD, &process_number);
+  if (process_number >= Size) {
+    if (process_rank == 0) {
+      Multiplication(A, B, Result);
+      return;
+    } else {
+      return;
+    }
+  }
+  int Nonzero_in_row = 1;
+  int All_No_empty = Nonzero_in_row * Size;
+
+  MatrixCRS Tmp;
+  InitializeMatrix(Size, Size, Result);
+  int Left_rows = Size;
+
+  int* Recv_size_from_process = new int[process_number];
+  int* Recv_index_from_process = new int[process_number];
+  Recv_index_from_process[0] = 0;
+  Recv_size_from_process[0] = Size / process_number;
+  for (int i = 1; i < process_number; i++) {
+    Left_rows -= Recv_size_from_process[i - 1];
+    Recv_size_from_process[i] = Left_rows / (process_number - i);
+    Recv_index_from_process[i] = Recv_index_from_process[i - 1] + Recv_size_from_process[i - 1];
+  }
+
+  MPI_Bcast(&B->Pointer.at(0), Size + 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&B->Value.at(0), All_No_empty, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&B->Col.at(0), All_No_empty, MPI_INT, 0, MPI_COMM_WORLD);
+  InitializeMatrix(Recv_size_from_process[process_rank], Recv_size_from_process[process_rank] * Nonzero_in_row, &Tmp);
+  Split(process_rank, Size, A, &Tmp, Nonzero_in_row);
+  RowIndexProc(Recv_size_from_process[process_rank], &Tmp, Nonzero_in_row);
+
+  MatrixCRS Tmp_result;
+  InitializeMatrix(Size, Size, &Tmp_result);
+  Multiplication(&Tmp, B, &Tmp_result);
+
+  MPI_Gatherv(&Tmp_result.Value.at(0), Tmp_result.Size, MPI_DOUBLE,
+    &Result->Value.at(0), Recv_size_from_process, Recv_index_from_process, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  MPI_Gatherv(&Tmp_result.Col.at(0), Tmp_result.Size, MPI_INT,
+    &Result->Col.at(0), Recv_size_from_process, Recv_index_from_process, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Gatherv(&Tmp_result.Pointer.at(0), Tmp_result.Size, MPI_INT,
+    &Result->Pointer.at(0), Recv_size_from_process, Recv_index_from_process, MPI_INT, 0, MPI_COMM_WORLD);
+}
+\end{lstlisting}
+\begin{lstlisting}
+// Main.cpp
+
+  // Copyright 2020 Zhafyarov Oleg
+#include <gtest-mpi-listener.hpp>
+#include <gtest/gtest.h>
+#include "./crs_matrix.h"
+
+TEST(Parallel_Operations_MPI, FirstTest_Matrix_CRS_Random_100x100) {
+  int process_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &process_rank);
+  int Size = 100;
+  int Nonzero_in_row = 1;
+  int All_No_empty = Nonzero_in_row * Size;
+
+  MatrixCRS A, B;
+  MatrixCRS Result;
+  MatrixCRS ToCompare;
+  InitializeMatrix(Size, All_No_empty, &Result);
+  InitializeMatrix(Size, All_No_empty, &A);
+  InitializeMatrix(Size, All_No_empty, &B);
+  InitializeMatrix(Size, All_No_empty, &ToCompare);
+  if (process_rank == 0) {
+    RandomMatrixCRS(Size, Nonzero_in_row, &A);
+    RandomMatrixCRS(Size, Nonzero_in_row, &B);
+    B = Transpose(Size, All_No_empty, Nonzero_in_row, &B);
+  }
+  ParallelMultiplication(process_rank, Size, &A, &B, &Result);
+  ParallelMultiplication(process_rank, Size, &A, &B, &ToCompare);
+  bool IsCompare = true;
+  if (process_rank == 0) {
+    for (int i = 0; i < All_No_empty; i++) {
+      if (Result.Pointer[i] != ToCompare.Pointer[i]) {
+        IsCompare = false;
+        break;
+      }
+    }
+    ASSERT_EQ(IsCompare, true);
+  }
+}
+
+TEST(Parallel_Operations_MPI, SecondTest_Matrix_CRS_Random_150x150) {
+  int process_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &process_rank);
+  int Size = 150;
+  int Nonzero_in_row = 1;
+  int All_No_empty = Nonzero_in_row * Size;
+
+  MatrixCRS A, B;
+  MatrixCRS Result;
+  InitializeMatrix(Size, All_No_empty, &Result);
+  InitializeMatrix(Size, All_No_empty, &A);
+  InitializeMatrix(Size, All_No_empty, &B);
+  if (process_rank == 0) {
+    RandomMatrixCRS(Size, Nonzero_in_row, &A);
+    RandomMatrixCRS(Size, Nonzero_in_row, &B);
+    B = Transpose(Size, All_No_empty, Nonzero_in_row, &B);
+  }
+  ParallelMultiplication(process_rank, Size, &A, &B, &Result);
+  bool IsCompare = true;
+  if (process_rank == 0) {
+    for (int i = 0; i < All_No_empty; i++) {
+      if (Result.Col[i] < 0) {
+        std::cout << Result.Col[i];
+        IsCompare = false;
+        break;
+      }
+    }
+    ASSERT_EQ(IsCompare, true);
+  }
+}
+
+TEST(Parallel_Operations_MPI, ThirdTest_Matrix_CRS_Random_250x250) {
+  int process_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &process_rank);
+  int Size = 250;
+  int Nonzero_in_row = 1;
+  int All_No_empty = Nonzero_in_row * Size;
+
+  MatrixCRS A, B;
+  MatrixCRS Result;
+  MatrixCRS ToCompare;
+  InitializeMatrix(Size, All_No_empty, &Result);
+  InitializeMatrix(Size, All_No_empty, &A);
+  InitializeMatrix(Size, All_No_empty, &B);
+  InitializeMatrix(Size, All_No_empty, &ToCompare);
+  if (process_rank == 0) {
+    RandomMatrixCRS(Size, Nonzero_in_row, &A);
+    RandomMatrixCRS(Size, Nonzero_in_row, &B);
+    B = Transpose(Size, All_No_empty, Nonzero_in_row, &B);
+  }
+  ParallelMultiplication(process_rank, Size, &A, &B, &Result);
+  bool IsCompare = true;
+  ParallelMultiplication(process_rank, Size, &A, &B, &ToCompare);
+  if (process_rank == 0) {
+    for (int i = 0; i < All_No_empty; i++) {
+      if (Result.Pointer[i] != ToCompare.Pointer[i]) {
+        IsCompare = false;
+        break;
+      }
+    }
+    ASSERT_EQ(IsCompare, true);
+  }
+}
+
+TEST(Parallel_Operations_MPI, FourthTest_Matrix_CRS_Random_500x500) {
+  int process_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &process_rank);
+  int Size = 500;
+  int Nonzero_in_row = 1;
+  int All_No_empty = Nonzero_in_row * Size;
+
+  MatrixCRS A, B;
+  MatrixCRS Result;
+  InitializeMatrix(Size, All_No_empty, &Result);
+  InitializeMatrix(Size, All_No_empty, &A);
+  InitializeMatrix(Size, All_No_empty, &B);
+  if (process_rank == 0) {
+    RandomMatrixCRS(Size, Nonzero_in_row, &A);
+    RandomMatrixCRS(Size, Nonzero_in_row, &B);
+    B = Transpose(Size, All_No_empty, Nonzero_in_row, &B);
+  }
+  ParallelMultiplication(process_rank, Size, &A, &B, &Result);
+  bool IsCompare = true;
+  if (process_rank == 0) {
+    for (int i = 0; i < All_No_empty; i++) {
+      if (Result.Col[i] < 0) {
+        IsCompare = false;
+        break;
+      }
+    }
+    ASSERT_EQ(IsCompare, true);
+  }
+}
+
+TEST(Parallel_Operations_MPI, FifthTest_efficiency_10000x10000) {
+  int process_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &process_rank);
+  int Size = 10000;
+  int Nonzero_in_row = 1;
+  int All_No_empty = Nonzero_in_row * Size;
+  double start_time, end_time, parallel, sequantional;
+  MatrixCRS A, B;
+  MatrixCRS Result;
+  MatrixCRS ToCompare;
+  InitializeMatrix(Size, All_No_empty, &Result);
+  InitializeMatrix(Size, All_No_empty, &A);
+  InitializeMatrix(Size, All_No_empty, &B);
+  InitializeMatrix(Size, All_No_empty, &ToCompare);
+  if (process_rank == 0) {
+    RandomMatrixCRS(Size, Nonzero_in_row, &A);
+    RandomMatrixCRS(Size, Nonzero_in_row, &B);
+    B = Transpose(Size, All_No_empty, Nonzero_in_row, &B);
+  }
+  start_time = MPI_Wtime();
+  ParallelMultiplication(process_rank, Size, &A, &B, &Result);
+  end_time = MPI_Wtime();
+  parallel = end_time - start_time;
+  bool IsCompare = true;
+  if (process_rank == 0) {
+    start_time = MPI_Wtime();
+    Multiplication(&A, &B, &ToCompare);
+    end_time = MPI_Wtime();
+    sequantional = end_time - start_time;
+    std::cout << "Parallel = " << parallel << std::endl;
+    std::cout << "Sequantional = " << sequantional << std::endl;
+    ASSERT_EQ(IsCompare, true);
+  }
+}
+
+int main(int argc, char** argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  MPI_Init(&argc, &argv);
+
+  AddGlobalTestEnvironment(new GTestMPIListener::MPIEnvironment);
+  ::testing::TestEventListeners& listeners = ::testing::UnitTest::GetInstance()->listeners();
+
+  listeners.Release(listeners.default_result_printer());
+  listeners.Release(listeners.default_xml_generator());
+
+  listeners.Append(new GTestMPIListener::MPIMinimalistPrinter);
+  return RUN_ALL_TESTS();
+}
+\end{lstlisting}
+
+\end{document}
