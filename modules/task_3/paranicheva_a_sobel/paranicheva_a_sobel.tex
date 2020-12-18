@@ -1,0 +1,421 @@
+\documentclass{report}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage[14pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+
+\geometry{a4paper,top=2cm,bottom=3cm,left=2cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+\setlist{nolistsep, itemsep=0.3cm,parsep=0pt}
+
+\lstset{language=C++,
+	basicstyle=\footnotesize,
+	keywordstyle=\color{blue}\ttfamily,
+	stringstyle=\color{red}\ttfamily,
+	commentstyle=\color{green}\ttfamily,
+	morecomment=[l][\color{magenta}]{\#}, 
+	tabsize=4,
+	breaklines=true,
+	breakatwhitespace=true,
+	title=\lstname,       
+}
+
+\makeatletter
+\renewcommand\@biblabel[1]{#1.\hfil}
+\makeatother
+
+\begin{document}
+
+	\begin{titlepage}
+
+		\begin{center}
+			Министерство науки и высшего образования Российской Федерации
+		\end{center}
+
+		\begin{center}
+			Федеральное государственное автономное образовательное учреждение высшего образования \\
+			Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского
+		\end{center}
+
+		\begin{center}
+			Институт информационных технологий, математики и механики
+		\end{center}
+
+		\vspace{4em}
+
+		\begin{center}
+			\textbf{\LargeОтчет по лабораторной работе} \\
+		\end{center}
+		\begin{center}
+			\textbf{\Large«Выделение ребер на изображении с использованием оператора Собеля»} \\
+		\end{center}
+
+		\vspace{4em}
+
+		\newbox{\lbox}
+		\savebox{\lbox}{\hbox{text}}
+		\newlength{\maxl}
+		\setlength{\maxl}{\wd\lbox}
+		\hfill\parbox{7cm}{
+			\hspace*{5cm}\hspace*{-5cm}\textbf{Выполнил:} \\ студент группы 381806-1 \\ Параничева А. В.\\
+			\\
+			\hspace*{5cm}\hspace*{-5cm}\textbf{Проверил:}\\ доцент кафедры МОСТ, \\ кандидат технических наук \\ Сысоев А. В.\\
+		}
+		\vspace{\fill}
+
+		\begin{center} Нижний Новгород \\ 2020 \end{center}
+
+	\end{titlepage}
+
+	\setcounter{page}{2}
+
+	% Содержание
+	\tableofcontents
+	\newpage
+
+	% Введение
+	\section*{Введение}
+	\addcontentsline{toc}{section}{Введение}
+	В современном мире распознавание границ объектов на изображениях стало играть огромную роль. Нельзя представить освоение космоса, современную медицину, составление карт местности и многих других областей без определения содержимого на снимках.  Фильтр Собеля является одним из наиболее популярных для решения подобных задач.
+	\par В идеальном случае результатом выделения границ является набор связанных кривых, обозначающих границы объектов, граней и оттисков на поверхности, а также кривые, которые отображают изменения положения поверхностей. Поэтому, применяя фильтр выделения границ к изображению, можно существенно уменьшить количество обрабатываемых данных, выделяя значимые части и отбрасывая незначимые.
+	\newpage
+
+	% Постановка задачи
+	\section*{Постановка задачи}
+	\addcontentsline{toc}{section}{Постановка задачи}
+	В данной работе необходимо реализовать последовательную и параллельную реализацию выделение ребер на изображении с использованием оператора Собеля, также нужно провести тесты для подтверждения правильности работы программы, сделать временную оценку последовательной и паралаллельной ее части. На основе полученных результатов сделать выводы.
+	\newpage
+
+	% Описание алгоритма
+	\section*{Описание алгоритма}
+	\addcontentsline{toc}{section}{Описание алгоритма}
+	Оператор Собеля основан на свёртке изображения небольшими сепарабельными целочисленными фильтрами в вертикальном и горизонтальном направлениях, поэтому его относительно легко вычислять. 
+	\par Оператор вычисляет градиент яркости изображения в каждой точке.  Результат показывает, насколько «резко» или «плавно» меняется яркость на картинке. 
+	\par Для вычисления градиента используются два вектора размерами 3 x 3, с помощью которых и вычисляются приближенно производные по горизонтали и вертикали:
+	\par x = [ -1, 0, 1, -2, 0, 2, -1, 0, 1]
+	\par y = [ -1, -2, -1, 0, 0, 0, 1, 2, 1]
+	\par Вектор x для горизонального направления, y - вертикального.
+	\par Проходим попиксельно все изображение и вместе с окрестностью пикселя умножаем раздельно на наши вектора. Записываем оба результата в две переменные. Пусть это будут Gx и Gy.
+	\par Используем эту формулу чтобы найти итог(G) для каждого пикселя:
+	\par $ G = \sqrt{Gx^2 + Gy^2}$
+	\newpage
+
+	% Описание схемы распараллеливания
+	\section*{Описание схемы распараллеливания}
+	\addcontentsline{toc}{section}{Описание схемы распараллеливания}
+	\par Изначально только процесс с нулевым рангом(корень) имеет исходное изображение. 
+	\par Для того, чтобы рассчитать сколько строк достанется каждому процессу, нам нужно общее количество строк поделить на количество процессов, остаток достанется нулевому. Далее нулевой процесс отправляет остальным свои строки, плюс дополнительно по одной строке сверху и снизу нашего отрезка для вычисления градиента.
+	\par Каждый процесс, кроме нулевого, создает вектор, куда будет записывать свои локальные результаты. Далее используется функция нахождения градиента для каждого пикселя в отправленных строчках.
+	\par То же происходит и в нулевом процесс, только локальный результат записывается сразу в итоговое изображение. 
+	\par Далее нулевой процесс собирает со всех результаты и записывает в итоговое изображение в правильном порядке.
+	
+	\newpage
+
+	% Описание программной реализации
+	\section*{Описание программной реализации}
+	\addcontentsline{toc}{section}{Описание программной реализации}
+	Была реализована функция, генерирующая матрицу, каждый элемент которой имеет размер от 0 - 255, как и любой пиксель реального изображения в оттенках серого:
+	\begin{lstlisting}
+		std::vector<int> getRandomMatrix(int rows, int cols);
+	\end{lstlisting}
+	\par Для вычисления градиента каждого элемента была реализована функция:
+	\begin{lstlisting}
+		int SobelXY(std::vector<int> mat, int cols, int i, int j);
+	\end{lstlisting}
+	\par В следующей функции реализован оператор Собеля для последовательной обработки изображения:
+	\begin{lstlisting}
+		std::vector<int> getSequentialSobel(std::vector<int> mat, int rows, int cols);
+	\end{lstlisting}
+	\par Функция, выполняющая параллельные вычисления с помощью оператора Собеля:
+	\begin{lstlisting}
+		std::vector<int> getParalSobel(std::vector<int> mat, int rows, int cols);
+	\end{lstlisting}
+	\par Также была реализована вспомогательная функция для проверки корректности итогового значения пикселя: если на входе мы получаем элемент, размер которого превышает 255, то возвращаем 255, если элемент меньше 0, то возвращаем 0:
+	\begin{lstlisting}
+		int check(int tmp, int min, int max);
+	\end{lstlisting}
+	\newpage
+
+	% Описание экспериментов
+	\section*{Описание экспериментов}
+	\addcontentsline{toc}{section}{Описание экспериментов}
+	Для подтверждения корректности в программе представлен набор тестов, разработанных с помощью использования Google C++ Testing Framework.
+	\par Успешное прохождение всех тестов доказывает корректность работы программы. Всего в программе было реализовано 5 тестов.
+	\par Результаты тестов должны совпадать, однако скорость параллельной функции должна быть выше скорости последовательной.
+	\newpage
+
+	% Результаты экспериментов
+	\section*{Результаты экспериментов}
+	\addcontentsline{toc}{section}{Результаты экспериментов}
+	Для проведения экспериментов использовался компьютер со следующими аппаратными характеристиками:
+	\begin{itemize}
+		\item Процессор: Intel Core i7-7500U, 2.90 GHz, ядер: 2;
+		\item Оперативная память: 8 Gb;
+		\item ОС: Microsoft Windows 10 Pro;
+		\item Среда разработки: Visual Studio 2019.
+	\end{itemize}
+	\par В тестах генерируется матрица различных размеров, заменяющая изображение. В отчете будет рассмотрен тест с матрицей размером 300x300.
+	\par Результаты теста представлены в таблице:
+	\begin{table}[!h]
+		{Результаты экспериментов}
+		\centering
+		\begin{tabular}{lllll}
+			Процессы & Последовательно & Параллельно & Ускорение  \\
+			2        & 4.339           & 2.318       & 2.021      \\
+			5        & 4.465           & 1.579       & 2.886      \\
+			13       & 4.743           & 0.512       & 4.231      \\
+			21       & 4.514           & 0.471       & 4.272      
+
+		\end{tabular}
+	\end{table}
+	\par По данным, полученным в результате запусков на разных по числу процессах, можно сделать вывод о том, что параллельная функция работает быстрее последовательной и чем больше процессов, тем выше эффективность параллельной.
+	\newpage
+
+	% Заключение
+	\section*{Заключение}
+	\addcontentsline{toc}{section}{Заключение}
+	В ходе работы над программой были выполнены все поставленные задачи: \begin{itemize}
+		 \item Реализованы параллельная и последовательная функции, которые выполняют выделение ребер на изображении с использованием оператора Собеля. 
+		 \item Все пройденные тесты доказывают корректность работы программы, а также большую эффективность параллельной функций относительно последовательной.
+	\end{itemize}
+	\newpage
+
+	% Список литературы
+	\begin{thebibliography}{1}
+		\addcontentsline{toc}{section}{Список литературы}
+		\bibitem{1} Баркалов К.А., Сысоев А.В., Гергель В.П. «Решение задач глобальной оптимизации на гетерогенных кластерных системах». Нижний Новгород, 2015. 
+		\bibitem{2} Гонсалес Р., Вудс Р., «Цифровая обработка изображений», 2005.
+		\bibitem{3} Журавель И.М., «Краткий курс теории обработки изображений», 2009.
+	\end{thebibliography}
+	\newpage
+
+	% Приложение
+	\section*{Приложение}
+	\addcontentsline{toc}{section}{Приложение}
+	В данном разделе находится код, написанный в рамках лабораторной работы.
+	\begin{lstlisting}
+		// sobel.h
+
+		// Copyright 2020 Paranicheva Alyona
+		#ifndef MODULES_TASK_3_PARANICHEVA_A_SOBEL_SOBEL_H_
+		#define MODULES_TASK_3_PARANICHEVA_A_SOBEL_SOBEL_H_
+		
+		#include <vector>
+		
+		std::vector<int> getRandomMatrix(int rows, int cols);
+		int check(int tmp, int min, int max);
+		int SobelXY(std::vector<int> mat, int cols, int i, int j);
+		std::vector<int> getSequentialSobel(std::vector<int> mat, int rows, int cols);
+		std::vector<int> getParalSobel(std::vector<int> mat, int rows, int cols);
+		
+		#endif  // MODULES_TASK_3_PARANICHEVA_A_SOBEL_SOBEL_H_
+	\end{lstlisting}
+	\begin{lstlisting}
+		// Copyright 2020 Paranicheva Alyona
+		#include <mpi.h>
+		#include <iostream>
+		#include <random>
+		#include <ctime>
+		#include <vector>
+		#include <cmath>
+		#include "../../../modules/task_3/paranicheva_a_sobel/sobel.h"
+		
+		std::vector<int> getRandomMatrix(int rows, int cols) {
+			std::mt19937 gen;
+			gen.seed(static_cast<unsigned int>(time(0)));
+			std::vector<int> array(rows * cols);
+			for (int i = 0; i < rows * cols; i++)
+			array[i] = static_cast<int>(gen() % 256);
+			return array;
+		}
+		
+		int check(int tmp, int min, int max) {
+			if (tmp > max)
+			return max;
+			else if (tmp < min)
+			return min;
+			return tmp;
+		}
+		
+		int SobelXY(std::vector<int> mat, int cols, int posr, int posc) {
+			std::vector<int> x = { -1, 0, 1, -2, 0, 2, -1, 0, 1 };
+			std::vector<int> y = { -1, -2, -1, 0, 0, 0, 1, 2, 1 };
+			int sobx = 0, soby = 0, res, count = 0;
+			for (int i = -1; i < 2; i++)
+			for (int j = -1; j < 2; j++) {
+				sobx += mat[(posr + i) * cols + (posc + j)] * x[count];
+				soby += mat[(posr + i) * cols + (posc + j)] * y[count];
+				count++;
+			}
+			res = check(sqrt(sobx * sobx + soby * soby), 0, 255);
+			return res;
+		}
+		
+		std::vector<int> getSequentialSobel(std::vector<int> mat, int rows, int cols) {
+			std::vector<int> sobarr(rows * cols);
+			std::vector<int> tmp(cols);
+			for (int i = 0; i < cols; i++)
+			sobarr[i] = 0;
+			for (int i = 1; i < rows - 1; i++)
+			for (int j = 0; j < cols; j++) {
+				if (j == 0 || j == cols - 1)
+				sobarr[i * cols + j] = 0;
+				else sobarr[i * cols + j] = SobelXY(mat, cols, i, j);
+			}
+			for (int i = 0; i < cols; i++)
+			sobarr[(rows - 1) * cols + i] = 0;
+			return sobarr;
+		}
+		
+		std::vector<int> getParalSobel(std::vector<int> mat, int rows, int cols) {
+			int size, rank;
+			std::vector<int> sobmat(rows * cols);
+			MPI_Comm_size(MPI_COMM_WORLD, &size);
+			MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+			int count = (rows - 1) / size;
+			int rem = (rows - 1) % size;
+			if (rank == 0) {
+				for (int i = 0; i < cols; i++)
+				sobmat[i] = 0;
+				for (int i = 1; i < count + rem; i++)
+				for (int j = 0; j < cols; j++) {
+					if (j == 0 || j == cols - 1)
+					sobmat[i * cols + j] = 0;
+					else sobmat[i * cols + j] = SobelXY(mat, cols, i, j);
+				}
+				for (int i = 1; i < size; i++)
+				MPI_Send(mat.data() + rem * cols + count * cols * i - cols, (count + 2) * cols, MPI_INT, i, 0, MPI_COMM_WORLD);
+			} else {
+				std::vector<int> tmpmat((count + 2) * cols);
+				std::vector<int> tmpsob(count * cols);
+				MPI_Status status;
+				MPI_Recv(tmpmat.data(), (count + 2) * cols, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
+				for (int i = 0; i < count; i++) {
+					for (int j = 0; j < cols; j++) {
+						if (j == 0 || j == cols - 1)
+						tmpsob[i * cols + j] = 0;
+						else tmpsob[i * cols + j] = SobelXY(tmpmat, cols, i + 1, j);
+					}
+				}
+				MPI_Send(tmpsob.data(), count * cols, MPI_INT, 0, 0, MPI_COMM_WORLD);
+			}
+			if (rank == 0) {
+				for (int i = 1; i < size; i++) {
+					MPI_Status status;
+					MPI_Recv(sobmat.data() + rem * cols + count * cols * i, count * cols, MPI_INT, i, 0, MPI_COMM_WORLD, &status);
+				}
+				for (int i = 0; i < cols; i++)
+				sobmat[(rows - 1) * cols + i] = 0;
+			}
+			return sobmat;
+		}
+	\end{lstlisting}
+	\begin{lstlisting}
+		// Copyright 2020 Paranicheva Alyona
+		#include <mpi.h>
+		#include <gtest-mpi-listener.hpp>
+		#include <gtest/gtest.h>
+		#include <iostream>
+		#include <vector>
+		#include "./sobel.h"
+		
+		TEST(Test_Sobel, Matrix_4x5) {
+			int rank;
+			MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+			int rows = 4;
+			int cols = 5;
+			std::vector<int> mat;
+			if (rank == 0)
+			mat = getRandomMatrix(rows, cols);
+			std::vector<int> sob1 = getParalSobel(mat, rows, cols);
+			if (rank == 0) {
+				std::vector<int> sob2 = getSequentialSobel(mat, rows, cols);
+				ASSERT_EQ(sob1, sob2);
+			}
+		}
+		
+		TEST(Test_Sobel, Matrix_21x12) {
+			int rank;
+			MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+			int rows = 21;
+			int cols = 12;
+			std::vector<int> mat;
+			if (rank == 0)
+			mat = getRandomMatrix(rows, cols);
+			std::vector<int> sob1 = getParalSobel(mat, rows, cols);
+			if (rank == 0) {
+				std::vector<int> sob2 = getSequentialSobel(mat, rows, cols);
+				ASSERT_EQ(sob1, sob2);
+			}
+		}
+		
+		TEST(Test_Sobel, Matrix_100x100) {
+			int rank;
+			MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+			int rows = 100;
+			int cols = 100;
+			std::vector<int> mat;
+			if (rank == 0)
+			mat = getRandomMatrix(rows, cols);
+			std::vector<int> sob1 = getParalSobel(mat, rows, cols);
+			if (rank == 0) {
+				std::vector<int> sob2 = getSequentialSobel(mat, rows, cols);
+				ASSERT_EQ(sob1, sob2);
+			}
+		}
+		
+		TEST(Test_Sobel, Matrix_2x2) {
+			int rank;
+			MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+			int rows = 2;
+			int cols = 2;
+			std::vector<int> mat;
+			if (rank == 0)
+			mat = getRandomMatrix(rows, cols);
+			std::vector<int> sob1 = getParalSobel(mat, rows, cols);
+			if (rank == 0) {
+				std::vector<int> sob2 = getSequentialSobel(mat, rows, cols);
+				ASSERT_EQ(sob1, sob2);
+			}
+		}
+		
+		TEST(Test_Sobel, Matrix_3x3) {
+			int rank;
+			MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+			int rows = 3;
+			int cols = 3;
+			std::vector<int> mat;
+			if (rank == 0)
+			mat = getRandomMatrix(rows, cols);
+			std::vector<int> sob1 = getParalSobel(mat, rows, cols);
+			if (rank == 0) {
+				std::vector<int> sob2 = getSequentialSobel(mat, rows, cols);
+				ASSERT_EQ(sob1, sob2);
+			}
+		}
+		
+		int main(int argc, char* argv[]) {
+			::testing::InitGoogleTest(&argc, argv);
+			MPI_Init(&argc, &argv);
+			
+			::testing::AddGlobalTestEnvironment(new GTestMPIListener::MPIEnvironment);
+			::testing::TestEventListeners& listeners =
+			::testing::UnitTest::GetInstance()->listeners();
+			
+			listeners.Release(listeners.default_result_printer());
+			listeners.Release(listeners.default_xml_generator());
+			
+			listeners.Append(new GTestMPIListener::MPIMinimalistPrinter);
+			return RUN_ALL_TESTS();
+		}
+	\end{lstlisting}
+\end{document}
