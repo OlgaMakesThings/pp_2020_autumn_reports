@@ -1,0 +1,574 @@
+\documentclass[a4paper]{report}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage[14pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+
+\geometry{top=2cm,bottom=3cm,left=2cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+\usepackage{enumitem}
+\setlist{nolistsep,itemsep=0.3cm,parsep=0pt}
+
+\lstset{language=C++,
+		basicstyle=\footnotesize,
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{red}\ttfamily,
+		commentstyle=\color{green}\ttfamily,
+		morecomment=[l][\color{magenta}]{\#}, 
+		tabsize=4,
+		breaklines=true,
+  		breakatwhitespace=true,
+  		title=\lstname,       
+}
+
+\addto\captionsrussian{\renewcommand \contentsname {\LARGE Содержание}}
+
+\begin{document}
+\begin{titlepage}
+\begin{center}
+МИНИСТЕРСТВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РОССИЙСКОЙ ФЕДЕРАЦИИ\\
+Федеральное государственное автономное образовательное учреждение высшего образования \\
+\textbf{"Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского" (ННГУ)}
+\end{center}
+
+\begin{center}
+\textbf{Институт информационных технологий, математики и механики}
+\end{center}
+\vspace{4em}
+
+\begin{center}
+Отчет по лабораторной работе \\
+\vspace{1em}
+\textbf{\Large Быстрая сортировка с четно-нечетным слиянием Бэтчера} \\
+\end{center}
+
+\vspace{4em}
+
+\newbox{\lbox}
+\savebox{\lbox}{\hbox{text}}
+\newlength{\maxl}
+\setlength{\maxl}{\wd\lbox}
+\hfill\parbox{7cm}{
+\textbf{Выполнил:} \\ 
+студент группы 381806-3 \\
+Лудина Д. А. \\
+\\
+\textbf{Проверил:} \\ 
+доцент кафедры МОСТ, \\ 
+кандидат технических наук \\ 
+Сысоев А. В.
+}
+\vspace{\fill}
+
+\begin{center} Нижний Новгород \\ 2020 \end{center}
+\end{titlepage}
+
+\setcounter{page}{2}
+% содержание
+\tableofcontents{}
+\clearpage
+
+\begin{center}
+\section*{Введение}
+\end{center}
+\addcontentsline{toc}{section}{Введение}
+\par Под сортировкой понимают процесс размещения элементов заданного множества объектов в некотором определенном порядке. Она является одной из базовых операций обработки данных.
+Когда элементы отсортированы, их проще найти, производить с ними различные операции. \\
+Один из самых известных и широко используемых алгоритмов сортировки - быстрая сортировка.
+\par При больших объемах данных даже наиболее оптимальные методы
+сортировки работают долго. Поэтому исходные данные следует разбивать
+на группы меньшего размера и производить упорядочивание параллельно. Это значительно
+ускоряет сортировку, но могут возникнуть проблемы корректного слияния полученных
+фрагментов. Использование слияния Бэтчера с построением сети сортировки может решить эту
+проблему. 
+\par Поэтому целью данной работы является реализация параллельной быстрой сортировки с четно - нечетным слиянием Бэтчера и сравнение ее с последовательной быстрой сортировкой.
+\newpage
+
+\begin{center}
+\section*{Постановка задач}
+\end{center}
+\addcontentsline{toc}{section}{Постановка задач}
+В данной лабораторной работе необходимо:
+\begin{enumerate}
+\item Реализовать последовательный алгоритм быстрой сортировки.
+\item Реализовать параллельный алгоритм быстрой сортировки с четно - нечетным слиянием Бэтчера с использованием MPI.
+\item Провести вычислительные эксперементы и сравнить время работы двух алгоритмов.
+\item Сделать вывод на основе полученных результатов.
+\end{enumerate}
+\newpage
+
+\begin{center}
+\section*{Описание алгоритма}
+\end{center}
+\addcontentsline{toc}{section}{Описание алгоритма}
+Алгоритм быстрой сортировки:
+\begin{enumerate}
+\item Выбираем ведущий элемент (середина входного массива).
+\item Переставляем элементы массива следующим образом: меньше ведущего в левую чать, а те, которые больше в правую. 
+\item Рекурсивно выполняем фунцию для левой и правой частей. 
+\end{enumerate}
+Алгоритм построения сети сортировки для слияния Батчера:
+\begin{enumerate}
+\item Если длинна входного массива меньше или равна 1, то мы завершаем работу.
+\item Разбиваем входной массив на два массива up и down.
+\item Рекурсивно выполняем функцию для обоих массивов.
+\item Для полученных массивов выполняем следующее:
+\begin{itemize}
+\item Если сумма размеров массивов равна 1, то мы завершаем работу.
+\item Если сумма размеров массивов равна 2, то добавляем пару элементов в сеть
+сортировки.
+\item Разбиваем каждый массив на два: в одном элементы с четными индексами, а в другом с нечетными.
+\item Рекурсивно выполняем процедуру для пар полученных массивов, отдельно с четными и нечетными индексами.
+\item Добавляем полученные массивы в один.
+\item Добавляем в сеть сортировки пары элементов с индексами (1, 2), (3, 4) и т. д.
+\end{itemize}
+\end{enumerate}
+\newpage
+
+\begin{center}
+\section*{Схема распараллеливания}
+\end{center}
+\addcontentsline{toc}{section}{Схема распараллеливания}
+\par Для удобства будем считать, что сеть сортировки уже построена. Для распараллеливания алгоритма быстрой сортировки необходимо разбить исходный массив на подмассивы, количесво которых равно количеству параллельно работающих процессов.\\
+Для корректной работы алгорита число элементов массива должно быть кратно числу процессов, если это не так, то в массив добавляются фиктивные элементы, заведомо больше всех остальных элементов. После разбиения надо сделать рассылку подмассивов процессам, затем происходит быстрая сортировка каждого подмассива в своем процессе.\\
+\par Следующим этапом является само слияние Бэтчера. В цикле по массиву, хранящему сеть сортировки, каждый элемент которой представляет собой пару номеров процессов или компаратор, процессы с номерами, входящими в один компаратор, отправляют друг другу свои данные. Потом каждый процесс выполняет упорядоченное слияние полученных данных со своими, причем первый процесс в компораторе сохраняет в своем подмассиве первую половину получившегося массива, а второй процесс – вторую.\\
+Затем осуществляется сбор подмассивов от всех процессов в корневой массив и удаление фиктивных переменных. В итоге получется отсортированный массив.
+\newpage
+
+\begin{center}
+\section*{Описание программной реализации}
+\end{center}
+\addcontentsline{toc}{section}{Описание программной реализации}
+\par Последовательный алгоритм быстрой сортировки представлен двумя функциями:\\
+Основной функцией 
+\begin{lstlisting}
+void quickSort(std::vector<int>* vec, int first, int last);
+\end{lstlisting}
+и вспомогательной
+\begin{lstlisting}
+int part(std::vector<int>* vec, int first, int last);
+\end{lstlisting}
+В которые в качетве входных параметров передаются ссылка на вектор и индексы первого и последнего элементов сортируемого фрагмента.
+\par Построение сети сортировка для четно - нечетного слияния Бэтчера состоит из двух функций:
+\begin{lstlisting}
+void network(std::vector<int> procs);
+\end{lstlisting}
+На вход передается вектор, хранящий в себе номера процессов.
+\begin{lstlisting}
+void merge(std::vector<int> vec_up, std::vector<int> vec_down);
+\end{lstlisting}
+В качестве входных параметров передаются вектора, в которых хранятся номера процессов, выбранные четным и нечетным правилом.
+\par Параллельный алгоритм быстрой сортировки представлен функцией:
+\begin{lstlisting}
+void quickSortBatcher(std::vector<int>* vec);
+\end{lstlisting}
+В качетве входного параметра передается ссылка на вектор, который необходимо отсортировать.
+\par Также в программе реализована вспомогательная функция, заполняющая вектор случайными целыми значениями от 1 до 99. На вход принимает размер вектора
+\begin{lstlisting}
+std::vector<int> createRandomVector(int size_v);
+\end{lstlisting}
+\newpage
+
+\begin{center}
+\section*{Подтверждение корректности}
+\end{center}
+\addcontentsline{toc}{section}{Подтверждение корректности}
+\par Для подтверждения корректности в программе реализована система тестов, разработанная с помощью использования Google C++ Testing Framework.
+\begin{itemize}
+\item\textit{Test\_Quick\_Sort\_1} – проверка работы последовательной быстрой сортировки на массиве с большим размером;
+\item\textit{Test\_Quick\_Sort\_2} – проверка работы последовательной быстрой сортировки на массиве с маленьким размером;
+\item\textit{Test\_Batcher\_Sort\_1} – проверка работы алгоритма параллельной быстрой сортировки с четно - нечетным слиянием Бэтчера на малом массиве;
+\item\textit{Test\_Batcher\_Sort\_2} – проверка работы алгоритма параллельной быстрой сортировки с четно - нечетным слиянием Бэтчера на большом массиве;
+\item\textit{TimeTest} - проверка эффективности параллельной схемы. Сравнение времени последовательного и параллельного алгоритмов;
+\end{itemize}
+\par Успешное прохождение данных тестов доказывает корректность работы всей программы.
+\newpage
+
+\begin{center}
+\section*{Результаты эксперементов}
+\end{center}
+\addcontentsline{toc}{section}{Результаты эксперементов}
+\par Вычислительные эксперименты для оценки эффективности параллельной быстрой сортировки с четно-нечетным слиянием Бэтчера проводились на ПК со следующей аппаратной конфигурацией:
+\begin{enumerate}
+\item Процессор: Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz 1.80GHz, ядер: 4, логических процессоров: 8;
+\item Оперативная память: 6 Gb, 2133 MHz;
+\item Операционная система: Windows 10 Домашняя;
+\item Среда разработки: Visual Studio 2017.
+\end{enumerate}
+\par Для проведения тестов производилась сортировка векторов размером 10000000 на числе процессов от 1 до 10.
+В рамках эксперимента было вычислено время работы параллельного и последовательного алгоритмов, усреднение по трем экспериментам.\\
+Результаты экспериментов представлены в Таблице 1.
+\begin{table}[!h]
+\caption{Результаты вычислительных экспериментов}
+\centering
+\begin{tabular}{|p{3cm}|p{4cm}|p{4cm}|p{3cm}|}
+\hline
+Количество процессов & Последовательный алгоритм,сек & Параллельный алгоритм,сек & Ускорение  \\\hline
+1  & 0.474 & 0.332 & 1.428  \\\hline
+2  & 0.469 & 0.240 & 1.954  \\\hline
+3  & 0.476 & 0.281 & 1.694  \\\hline
+4  & 0.475 & 0.262 & 1.813  \\\hline
+5  & 0.490 & 0.330 & 1.485  \\\hline
+6  & 0.476 & 0.356 & 1.337  \\\hline
+7  & 0.477 & 0.381 & 1.252  \\\hline
+8  & 0.482 & 0.374 & 1.289  \\\hline
+9  & 0.477 & 0.459 & 1.039  \\\hline
+10 & 0.474 & 0.480 & 0.987  \\
+\hline
+\end{tabular}
+\end{table}
+\par На основе полученных данных, можно сделать вывод, что параллельный случай работает быстрее, чем последовательный. Однако, разница по времени между алгоритмами не сильно высока, а при 10 процессах последовательный случай по времени меньше параллельного.\\
+Это объясняется следующим:\\
+Во - первых, переключениями между процессами, которые предполагает алгоритма параллельной быстрой сортировки с четно - нечетным слиянием Бэтчера.\\
+Во - вторых, использованием коллективных операций для обмена данными между ними.
+\par Кроме того, можно сделать вывод, что при данной аппаратной конфигурации наиболее эффективным будет использование 2 - 4 процессов для параллельной быстрой сортировки с четно - нечетным слиянием Бэтчера.
+\newpage
+
+\begin{center}
+\section*{Заключение}
+\end{center}
+\addcontentsline{toc}{section}{Заключение}
+\par В ходе данной лабораторной работы мною были реализованы два алгоритма сортировки: классическая быстрая сортировка и параллельная быстрая сортировка с четно - нечетным слиянием Бэтчера. Кроме того, были разработаны и доведены до успешного выполнения тесты, созданные для данного программного проекта с использованием Google C++ Testing Framework и необходимые для подтверждения корректности работы программы.
+\par Основной целью работы была реализация параллельной версии сортировки, которая должна работать быстрее по времени, чем последовательная.
+Вычислительные эксперименты нам это показали.
+\par Быстрая сортировка в параллельном алгоритме работает на меньшем объеме данных,
+что сказывается на времени работы. Этот факт делает ее более предпочтительной для использования в реальных вычислительных задачах.
+\newpage
+
+\addcontentsline{toc}{section}{Литература}
+\begin{thebibliography}{}
+\bibitem{1} Гергель В. П. Теория и практика параллельных вычислений. – 2007.
+\bibitem{2} Гергель В. П., Стронгин Р. Г. Основы параллельных вычислений для многопроцессорных вычислительных систем. – 2003.
+\bibitem{3} Якобовский М. В. Параллельные алгоритмы сортировки больших объемов
+данных // Фундаментальные физико-математические проблемы и
+моделирование технико-технологических систем: Сб. науч. тр.: Янус-К, 2004,
+с. 235 – 249.
+\bibitem{4} Сеть обменной сортировки со слиянием Бэтчера [Электронный ресурс]: Хабр,
+сообщество IT-специалистов // URL: \url{https://habr.com/ru/post/275889/}
+\end{thebibliography}{}
+\newpage
+
+\begin{center}
+\section*{Приложение}
+\end{center}
+\addcontentsline{toc}{section}{Приложение}
+\begin{lstlisting}
+// quick_sort_batcher.h
+// Copyright 2020 Ludina Daria
+#ifndef MODULES_TASK_3_LUDINA_D_QUICK_SORT_BATCHER_QUICK_SORT_BATCHER_H_
+#define MODULES_TASK_3_LUDINA_D_QUICK_SORT_BATCHER_QUICK_SORT_BATCHER_H_
+
+#include <mpi.h>
+#include <random>
+#include <ctime>
+#include <vector>
+#include <utility>
+#include <algorithm>
+
+std::vector<int> createRandomVector(int size_v);
+int part(std::vector<int>* vec, int first, int last);
+void quickSort(std::vector<int>* vec, int first, int last);
+void merge(std::vector<int> vec_up, std::vector<int> vec_down);
+void network(std::vector<int> procs);
+void quickSortBatcher(std::vector<int>* vec);
+
+#endif  // MODULES_TASK_3_LUDINA_D_QUICK_SORT_BATCHER_QUICK_SORT_BATCHER_H_
+\end{lstlisting}
+
+\begin{lstlisting}
+// quick_sort_batcher.cpp
+// Copyright 2020 Ludina Daria
+#include "../../../modules/task_3/ludina_d_quick_sort_batcher/quick_sort_batcher.h"
+#include <vector>
+#include <utility>
+#include <algorithm>
+
+std::vector<std::pair<int, int>> comparators;
+
+std::vector<int> createRandomVector(int size_v) {
+  std::mt19937 random;
+  random.seed(static_cast<unsigned int>(time(0)));
+  std::vector<int> vec(size_v);
+  for (int i = 0; i < size_v; i++) {
+    vec[i] = random() % 100;
+  }
+  return vec;
+}
+
+int part(std::vector<int>* vec, int first, int last) {
+  int pivot = (*vec)[(first + last) / 2];
+  int f = first;
+  int  l = last;
+  int tmp;
+  while (f <= l) {
+    while ((*vec)[f] < pivot) f++;
+    while ((*vec)[l] > pivot) l--;
+    if (f >= l)
+      break;
+    tmp = (*vec)[f];
+    (*vec)[f] = (*vec)[l];
+    (*vec)[l] = tmp;
+    f++;
+    l--;
+  }
+  return l;
+}
+
+void quickSort(std::vector<int>* vec, int first, int last) {
+  if (first < last) {
+    int pivot = part(vec, first, last);
+    quickSort(vec, first, pivot);
+    quickSort(vec, pivot + 1, last);
+  }
+}
+
+void merge(std::vector<int> vec_up, std::vector<int> vec_down) {
+  int vec_size = vec_up.size() + vec_down.size();
+  if (vec_size == 1) {
+    return;
+  } else if (vec_size == 2) {
+    comparators.push_back(std::pair<int, int>(vec_up[0], vec_down[0]));
+    return;
+  }
+
+  std::vector<int> vec_up_odd, vec_up_even;
+  std::vector<int> vec_down_odd, vec_down_even;
+  std::vector<int> vec_result(vec_size);
+  int vec_up_size = vec_up.size();
+  for (int i = 0; i < vec_up_size; i++) {
+    i % 2 ? vec_up_even.push_back(vec_up[i]) : vec_up_odd.push_back(vec_up[i]);
+  }
+  int vec_down_size = vec_down.size();
+  for (int i = 0; i < vec_down_size; i++) {
+    i % 2 ? vec_down_even.push_back(vec_down[i]) : vec_down_odd.push_back(vec_down[i]);
+  }
+
+  merge(vec_up_odd, vec_down_odd);
+  merge(vec_up_even, vec_down_even);
+
+  std::copy(vec_up.begin(), vec_up.end(), vec_result.begin());
+  std::copy(vec_down.begin(), vec_down.end(), vec_result.begin() + vec_up.size());
+  int res_size = vec_result.size();
+  for (int i = 1; i < res_size - 1; i += 2) {
+    comparators.push_back(std::pair<int, int>(vec_result[i], vec_result[i + 1]));
+  }
+}
+
+void network(std::vector<int> procs) {
+  int p_size = procs.size();
+  if (p_size <= 1) {
+    return;
+  }
+  std::vector<int> vec_up(p_size / 2);
+  std::vector<int> vec_down(p_size / 2 + p_size % 2);
+
+  std::copy(procs.begin(), procs.begin() + vec_up.size(), vec_up.begin());
+  std::copy(procs.begin() + vec_up.size(), procs.end(), vec_down.begin());
+  network(vec_up);
+  network(vec_down);
+  merge(vec_up, vec_down);
+}
+
+void quickSortBatcher(std::vector<int>* vec) {
+  int rank, size;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  MPI_Status status;
+
+  int vec_size = vec->size();
+  int fict = 0;
+  while (vec_size % size) {
+    vec->push_back(1000);
+    vec_size++;
+    fict++;
+  }
+  int delta = vec_size / size;
+  std::vector<int> result(delta);
+  std::vector<int> curr_vec(delta);
+  std::vector<int> tmp_vec(delta);
+
+  MPI_Scatter(&(*vec)[0], delta, MPI_INT, &result[0], delta, MPI_INT, 0, MPI_COMM_WORLD);
+  std::sort(result.begin(), result.end());
+
+  std::vector<int> procs(size);
+  int s_procs = procs.size();
+  for (int i = 0; i < s_procs; i++)
+    procs[i] = i;
+  network(procs);
+
+  int comp_size = comparators.size();
+  for (int i = 0; i < comp_size; i++) {
+    std::pair<int, int> comparator = comparators[i];
+    if (rank == comparator.first) {
+      MPI_Send(result.data(), delta, MPI_INT, comparator.second, 0, MPI_COMM_WORLD);
+      MPI_Recv(curr_vec.data(), delta, MPI_INT, comparator.second, 0, MPI_COMM_WORLD, &status);
+      int resi = 0, curi = 0;
+      for (int tmpi = 0; tmpi < delta; tmpi++) {
+        int res = result[resi];
+        int cur = curr_vec[curi];
+        if (res < cur) {
+          tmp_vec[tmpi] = res;
+          resi++;
+        } else {
+          tmp_vec[tmpi] = cur;
+          curi++;
+        }
+      }
+      result = tmp_vec;
+    } else if (rank == comparator.second) {
+      MPI_Recv(curr_vec.data(), delta, MPI_INT, comparator.first, 0, MPI_COMM_WORLD, &status);
+      MPI_Send(result.data(), delta, MPI_INT, comparator.first, 0, MPI_COMM_WORLD);
+      int start = delta - 1;
+      int resi = start, curi = start;
+      for (int tmpi = start; tmpi >= 0; tmpi--) {
+        int res = result[resi];
+        int cur = curr_vec[curi];
+        if (res > cur) {
+          tmp_vec[tmpi] = res;
+          resi--;
+        } else {
+          tmp_vec[tmpi] = cur;
+          curi--;
+        }
+      }
+      result = tmp_vec;
+    }
+  }
+  MPI_Gather(&result[0], delta, MPI_INT, &(*vec)[0], delta, MPI_INT, 0, MPI_COMM_WORLD);
+  if (rank == 0 && fict != 0) {
+    vec->erase(vec->begin() + vec_size - fict, vec->end());
+  }
+  return;
+}
+\end{lstlisting}
+
+\begin{lstlisting}
+//main.cpp
+// Copyright 2020 Ludina Daria
+#include <gtest-mpi-listener.hpp>
+#include <gtest/gtest.h>
+#include <vector>
+#include <algorithm>
+#include "./quick_sort_batcher.h"
+
+TEST(Quick_Sort_Batcher, Test_Quick_Sort_1) {
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  int vec_size = 100;
+  std::vector<int> vec_1(vec_size);
+  std::vector<int> vec_2(vec_size);
+
+  if (rank == 0) {
+    vec_1 = createRandomVector(vec_size);
+    vec_2 = vec_1;
+    quickSort(&vec_1, 0, 99);
+    std::sort(vec_2.begin(), vec_2.end());
+    ASSERT_EQ(vec_1, vec_2);
+  }
+}
+
+TEST(Quick_Sort_Batcher, Test_Quick_Sort_2) {
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  int vec_size = 10;
+  std::vector<int> vec_1(vec_size);
+  std::vector<int> vec_2(vec_size);
+
+  if (rank == 0) {
+    vec_1 = { 8, 4, 17, 3, 11, 2, 1, 9, 7, 20 };
+    vec_2 = vec_1;
+    quickSort(&vec_1, 0, 9);
+    std::sort(vec_2.begin(), vec_2.end());
+    ASSERT_EQ(vec_1, vec_2);
+  }
+}
+
+TEST(Quick_Sort_Batcher, Test_Batcher_Sort_1) {
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  int vec_size = 100;
+  std::vector<int> vec_1(vec_size);
+  std::vector<int> vec_2(vec_size);
+
+  if (rank == 0) {
+    vec_1 = createRandomVector(vec_size);
+    vec_2 = vec_1;
+  }
+
+  quickSortBatcher(&vec_1);
+  if (rank == 0) {
+    std::sort(vec_2.begin(), vec_2.end());
+    ASSERT_EQ(vec_1, vec_2);
+  }
+}
+
+TEST(Quick_Sort_Batcher, Test_Batcher_Sort_2) {
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  int vec_size = 1000;
+  std::vector<int> vec_1(vec_size);
+  std::vector<int> vec_2(vec_size);
+
+  if (rank == 0) {
+    vec_1 = createRandomVector(vec_size);
+    vec_2 = vec_1;
+  }
+
+  quickSortBatcher(&vec_1);
+  if (rank == 0) {
+    std::sort(vec_2.begin(), vec_2.end());
+    ASSERT_EQ(vec_1, vec_2);
+  }
+}
+
+TEST(Quick_Sort_Batcher, TimeTest) {
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  int vecsize = 100000;
+  std::vector<int> vec(vecsize);
+  std::vector<int> vec2(vecsize);
+
+  if (rank == 0) {
+    vec = createRandomVector(vecsize);
+    vec2 = vec;
+  }
+  double startTime = MPI_Wtime();
+  quickSortBatcher(&vec);
+  double finishTime = MPI_Wtime();
+
+  if (rank == 0) {
+    std::cout << "Parallel sort:" <<  finishTime - startTime << std::endl;
+    startTime = MPI_Wtime();
+    std::sort(vec2.begin(), vec2.end());
+    // quickSort(&vec2, 0, 99999);
+    double finishTime = MPI_Wtime();
+    std::cout << "Quick sort:" << finishTime - startTime << std::endl;
+    ASSERT_EQ(vec2, vec);
+  }
+}
+
+int main(int argc, char** argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  MPI_Init(&argc, &argv);
+
+  ::testing::AddGlobalTestEnvironment(new GTestMPIListener::MPIEnvironment);
+  ::testing::TestEventListeners& listeners =
+    ::testing::UnitTest::GetInstance()->listeners();
+
+  listeners.Release(listeners.default_result_printer());
+  listeners.Release(listeners.default_xml_generator());
+
+  listeners.Append(new GTestMPIListener::MPIMinimalistPrinter);
+  return RUN_ALL_TESTS();
+}
+\end{lstlisting}
+
+\end{document}
