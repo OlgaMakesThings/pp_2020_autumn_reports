@@ -175,38 +175,19 @@ $$
 % Описание программной реализации
 \section*{Описание программной реализации}
 \addcontentsline{toc}{section}{Описание программной реализации}
-Функция для проверки размеров матрицы и количества процессов
-\begin{lstlisting}
-bool checkSize(int* size);
-\end{lstlisting}
-\par В качестве входных параметров передается ссылка на размер матрицы. В качестве выходных данных значение типа boolean.
-\par Функция для сравнения результирующих матрицы
-\begin{lstlisting}
-bool assertMatrix(const Matrix& matrixA, const Matrix& matrixB);
-\end{lstlisting}
-\par В качестве входных параметров передается константная ссылка на матрицы {\itshape $A, B$}. В качестве выходных данных значение типа boolean.
-\par Функция для вывода матрицы
-\begin{lstlisting}
-void printMatrix(const Matrix& matrix, int size);
-\end{lstlisting}
-\par В качестве входных параметров передается константная ссылки на матрицу {\itshape $A$} и ее размер.
-\par Последовательный алгоритм вызывается с помощью функции:
-\par Функция для генерации матрицы
-\begin{lstlisting}
-Matrix createRandomMatrix(int size);
-\end{lstlisting}
-\par В качестве входных параметров передается размер матрицы. Выходные данные сгенерированная матрица.
-\par Последовательный алгоритм вызывается с помощью функции:
+В программе используются функции, представленные ниже.
+\par Последовательный алгоритм Фокса реализован в следующей функции:
 \begin{lstlisting}
 Matrix MultiplyMatrixSequential(const Matrix& matrixA, const Matrix& matrixB, int size);
 \end{lstlisting}
-\par В качестве входных параметров передается константная ссылки на матрицы (вектор вещественных чисел) {\itshape $A, B$} и их размер. Выходными данными является результирующая матрцица.
-\par Реализация распараллеливания алгоритма Фокса представлена в функции:
+\par В качестве входных параметров передается константные ссылки на матрицы (вектор вещественных чисел) {\itshape $A, B$} и их размер. Выходными данными является результирующая матрцица.
+\par Реализация параллельного алгоритма Фокса представлена в функции:
 \begin{lstlisting}
 Matrix MultiplyMatrixParallel(const Matrix& matrixA, const Matrix& matrixB, int size);
 \end{lstlisting}
-\par В качестве входных параметров передается константная ссылки на матрицы (вектор вещественных чисел) {\itshape $A, B$} и их размер. Выходными данными является результирующая матрцица.
-\par Структура для топологи
+\par В качестве входных параметров передается константные ссылки на матрицы (вектор вещественных чисел) {\itshape $A, B$} и их размер. Выходными данными является результирующая матрцица.
+\par В этой функции также используются следующие структура и функция, описанные ниже.
+\par Структура для описании топологии:
 \begin{lstlisting}
     struct Grid {
         int dimGrid;
@@ -217,12 +198,35 @@ Matrix MultiplyMatrixParallel(const Matrix& matrixA, const Matrix& matrixB, int 
         MPI_Comm commCols;
     };
 \end{lstlisting}
-\par dimGrid - Порядок решетки, numRow - номер строки, numCol - номер столбца, commGrid - коммуникатор решетки, commRow - коммуникатор строки, commCols - коммуникатор столбца.
+\par \verb|dimGrid| - Порядок решетки, \verb|numRow| - номер строки, \verb|numCol| - номер столбца, \verb|commGrid| - коммуникатор решетки, \verb|commRow| - коммуникатор строки, \verb|commCols| - коммуникатор столбца.
 \par Функция для сложения матриц {\itshape $A$} и {\itshape $B$}, и помещение результата в матрицу {\itshape $C$}. Используется в параллельной реализации.
 \begin{lstlisting}
 void MultiplyMatrixAndSum(const Matrix& matrixA, const Matrix& matrixB, double* matrixC, int size);
 \end{lstlisting}
-\par В качестве входных параметров передается константная ссылки на матрицы (вектор вещественных чисел) {\itshape $A, B$}, их размер и ссылку на матрицу {\itshape $C$}.
+\par В качестве входных параметров передается константные ссылки на матрицы (вектор вещественных чисел) {\itshape $A, B$}, их размер и ссылку на матрицу {\itshape $C$}.
+\par При тестировании испольются следующие функции:
+\begin{itemize}
+    \item Функция для проверки размеров матрицы и количества процессов
+    \begin{lstlisting}
+    bool checkSize(int* size);
+    \end{lstlisting}
+    \par В качестве входных параметров передается ссылка на размер матрицы. В качестве выходных данных значение типа \verb|bool|.
+    \item Функция для сравнения результирующих матрицы
+    \begin{lstlisting}
+    bool assertMatrix(const Matrix& matrixA, const Matrix& matrixB);
+    \end{lstlisting}
+    \par В качестве входных параметров передается константные ссылки на матрицы {\itshape $A, B$}. В качестве выходных данных значение типа \verb|bool|.
+    \item Функция для вывода матрицы
+    \begin{lstlisting}
+    void printMatrix(const Matrix& matrix, int size);
+    \end{lstlisting}
+    \par В качестве входных параметров передается константная ссылки на матрицу и ее размер.
+    \item Функция для генерации матрицы
+    \begin{lstlisting}
+    Matrix createRandomMatrix(int size);
+    \end{lstlisting}
+    \par В качестве входных параметров передается размер матрицы. Выходные данные сгенерированная матрица.
+\end{itemize}
 \newpage
 
 % Подтверждение корректности
