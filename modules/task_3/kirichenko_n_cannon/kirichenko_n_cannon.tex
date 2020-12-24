@@ -58,7 +58,7 @@
 \begin{center}
 \textbf{\Large «Умножение плотных матриц. Элементы типа double. Блочная схема, алгоритм Кэннона.»}
 \vspace{4em}
-
+\end{center}
 \newbox{\lbox}
 \savebox{\lbox}{\hbox{text}}
 \newlength{\maxl}
@@ -139,12 +139,9 @@
 \addcontentsline{toc}{section}{Описание программной реализации}
 Для решения поставленной задачи используется три основные функции:
 \begin{itemize}
-\item std::vector<double> GetRandomMatrix(const sizet size)– генерирование случайной матрицы,
-размером size;
-;
-\item std::vector<double> MatrixMultiplication(const std::vector<double>& a,
-    const std::vector<double>& b, const sizet size)– последовательное умножение матриц;;
-\item std::vector<double> Cannon(const std::vector<double>& a, const std::vector<double>& b, const sizet size) – параллельное умножение матриц;;
+\item std::vector<double> GetRandomMatrix(const sizet size)– генерирование случайной матрицы,размером size;
+\item std::vector<double> MatrixMultiplication(const std::vector<double> a, const std::vector<double> b, const sizet size)– последовательное умножение матриц;;
+\item std::vector<double> Cannon(const std::vector<double> a, const std::vector<double> b, const sizet size);
 \end{itemize}
 
 
