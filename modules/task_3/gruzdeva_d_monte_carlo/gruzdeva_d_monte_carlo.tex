@@ -1,0 +1,483 @@
+\documentclass{report}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage[14pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+
+\geometry{a4paper,top=2cm,bottom=2cm,left=2.5cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+\setlist{nolistsep, itemsep=0.3cm,parsep=0pt}
+
+\usepackage{xcolor}
+\definecolor{weborange}{RGB}{255,165,0}
+\definecolor{codepurple}{RGB}{220,20,60}
+\definecolor{codecyan}{RGB}{135,0,198}
+\definecolor{codeblue}{RGB}{69,97,189}
+\definecolor{backcolour}{RGB}{230,230,220}
+
+\usepackage{listings}
+\lstset{language=C++,
+	basicstyle=\ttfamily\footnotesize,
+	backgroundcolor=\color{backcolour},
+    	emph={int, double, time_t, char, new},
+    	emphstyle={\color{blue}},
+    	commentstyle=\color{green!60!black},
+ 	keywordstyle={\color{codepurple}},
+ 	keywords=[2]{std},
+    	keywordstyle=[2]{\color{weborange}},
+    	otherkeywords = {:},
+	morekeywords = [2]{:},
+   	stringstyle=\color{codepurple},
+	morecomment=[l][\color{codecyan}]{\#}, 
+	tabsize=4,
+	breaklines=true,                               
+  	breakatwhitespace=true,
+  	title=\lstname,  
+}
+
+\makeatletter
+\renewcommand\@biblabel[1]{#1.\hfil}
+\makeatother
+
+\begin{document}
+
+\begin{titlepage}
+
+\begin{center}
+Министерство науки и высшего образования Российской Федерации
+\end{center}
+
+\begin{center}
+Федеральное государственное автономное образовательное учреждение высшего образования \\
+Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского
+\end{center}
+
+\begin{center}
+Институт информационных технологий, математики и механики
+\end{center}
+
+\vspace{4em}
+
+\begin{center}
+\textbf{\LargeОтчет по лабораторной работе} \\
+\end{center}
+\begin{center}
+\textbf{\Large«Вычисление многомерных интегралов методом Монте-Карло»} \\
+\end{center}
+
+\vspace{4em}
+
+\newbox{\lbox}
+\savebox{\lbox}{\hbox{text}}
+\newlength{\maxl}
+\setlength{\maxl}{\wd\lbox}
+\hfill\parbox{7cm}{
+\hspace*{5cm}\hspace*{-5cm}\textbf{Выполнил:} \\ студент группы 381806-2 \\ Груздева Д. М.\\
+\\
+\hspace*{5cm}\hspace*{-5cm}\textbf{Проверил:}\\ доцент кафедры МОСТ, \\ кандидат технических наук \\ Сысоев А. В.\\
+}
+\vspace{\fill}
+
+\begin{center} Нижний Новгород \\ 2020 \end{center}
+
+\end{titlepage}
+
+\setcounter{page}{2}
+
+% Содержание
+\tableofcontents
+\newpage
+
+% Введение
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+\par Методами Монте-Карло называют численные методы решения математических задач при помощи моделирования случайных величин. Однако, решать методами Монте-Карло можно любые математические задачи, а не только задачи вероятностного происхождения, связанные со случайными величинами. Важнейшим приемом построения методов Монте-Карло является сведение задачи к расчету математических ожиданий. Так как математические ожидания чаще всего представляют собой обычные интегралы, то центральное положение в теории метода Монте-Карло занимают методы вычисления интегралов.
+\newpage
+
+% Постановка задачи
+\section*{Постановка задачи}
+\addcontentsline{toc}{section}{Постановка задачи}
+\par В данном лабораторной работе требуется рассмотреть вычисление тройных интегралов методом Монте-Карло, реализовать последовательную и параллельную версии этого метода, проверить корректность разработанной реализации, провести эксперименты для оценки времени. По полученным результатам сделать выводы.
+\par Параллельная версия будет реализована при помощи технологии MPI. Проверка корректности будет осуществлена при помощи библиотеки для модульного тестирования Google C++ Testing Framework.
+\newpage
+
+% Описание алгоритма
+\section*{Описание алгоритма}
+\addcontentsline{toc}{section}{Описание алгоритма}
+\par Задан тройной интеграл вида:
+$$\iiint\limits_D f(x,y,z) \,dx\,dy\,dz, $$
+где подинтегральная функция задана в трехмерном промежутке (параллелепипеде) $D=[a_1,b_1]\times\*[a_2,b_2]\times[a_3,b_3]$.
+\par Введем трехмерную случайную величину $X$, имеющую в замкнутной области равномерное распределение вероятностей с дифференциальной функцией плотности
+$$p(x)=\frac{1}{\mu(D)}.$$
+\par Функция плотности равномерного распределения есть величина постоянная, поэтому введем ее под знак интеграла следующим образом:
+$$I=\iiint\limits_D f(x,y,z)\frac{\mu(D)}{\mu(D)} \,dx\,dy\,dz.$$
+\par Вынесем числитель дроби за знак интеграла, т. е.
+$$I=\mu(D)\iiint\limits_D f(x,y,z)\frac{1}{\mu(D)} \,dx\,dy\,dz.$$
+\par Получается, что тройной интеграл - математическое ожидание от функции $f(x)$ случайной величины в предположении, что случайная величина $X$ распределена равномерно с рассмотренной выше плотностью. Значит, мы можем записать
+$$I=\mu(D)M[f(\xi)],$$
+где $\xi=(\xi_1,\xi_2,\xi_3)$.
+\par В свою очередь, математическое ожидание может быть оценено с помощью арифметического среднего. Тогда приближенное значение тройного интеграла будет определяться приближенной формулой
+$$I\approx\frac{\mu(D)}{N}\sum\limits_{k=1}^N f(\xi^{(k)}),$$
+где $\xi^{(k)} \in D$ - значение случайной величины $X$ в $k$-м испытании.
+\par Чтобы смоделировать выборку трехмерной случайной величины $Х$, равномерно распределенной в трехмерном промежутке $D$, используются псевдослучайные числа. Для этого в каждом испытании с номером $k$ выбирают 3 псевдослучайных числа $r_i^{(k)}$, $i=\overline{1,3}$, и по ним определяют координаты случайных величин $\xi_i^{(k)}=a_i+(b_i-a_i)\*r_i^{(k)}$, $i=\overline{1,3}$, псевдослучайной точки $\xi^{(k)}$.
+\par Таким образом, техника применения метода Монте-Карло будет заключаться в генерировании в области $D$ псевдослучайных чисел и применении приближенной формулы, описанной выше.
+\newpage
+
+% Схема распараллеливания
+\section*{Схема распараллеливания}
+\addcontentsline{toc}{section}{Схема распараллеливания}
+\par Для распараллеливания подсчета тройного интеграла методом Монте-Карло, разделим параллелепипед $D$ на равные части: отрезки $[a_1,b_1]$ и $[a_2,b_2]$ оставляем прежними, а $[a_3,b_3]$ делим на части одинаковой длины, количество этих частей равно запускаемым процессам. Получаем несколько параллелепипедов. Распределим изначальное количество испытаний между ними (последнему параллелепипеду может достаться меньше, в случае если невозможно разделить испытания на процессы без остатка). После этого, параллельно запускаем последовательный алгоритм на всех процессах.
+\par В итоге, каждый процесс считает свою часть интеграла и отправляет ее корневому процессу, после чего тот суммирует все присланные ему части и возвращает уже итоговый инеграл.
+\newpage
+
+% Описание программной реализации
+\section*{Описание программной реализации}
+\addcontentsline{toc}{section}{Описание программной реализации}
+Для начала реализуем вызов интегрируемых функций через шаблонный класс \lstinline$std:function$
+\begin{lstlisting}
+double callFunction(std::function<double(double, double, double)> function, double x, double y, double z);
+\end{lstlisting}
+\par Теперь, мы можем передавать функцию в функцию. Опишем функцию для последовательной версии алгоритма.
+\begin{lstlisting}
+double getSequentialIntegral(double x1, double x2, double y1, double y2, double z1, double z2, int n, std::function<double(double, double, double)> function, time_t seed);
+\end{lstlisting}
+Первые шесть параметров - границы интегрирования, далее \lstinline$n$ - количество испытаний, \lstinline$std::function<double(double, double, double)> function$ - интегрируемая функция, \lstinline$time_t seed$ - семя генератора псевдослучайных чисел.
+Внутри функции создаем сам генератор:
+\begin{lstlisting}
+std::mt19937 gen(seed);
+std::uniform_real_distribution<double> uniform(0, 1);
+\end{lstlisting}
+Создаем цикл с количеством итераций, равным количеству испытаний, в нем для каждой координаты имеем:
+\begin{lstlisting}
+double x = x1 + (x2 - x1) * uniform(gen);
+\end{lstlisting}
+После чего вызываем функцию \lstinline$std::function<double(double, double, double)> function$ и приплюсовываем ее значение к конечному результату.
+\par Перейдем к параллельной функции
+\begin{lstlisting}
+double getParallelIntegral(double x1, double x2, double y1, double y2, double z1, double z2, int n, std::function<double(double, double, double)> function, time_t seed) 
+\end{lstlisting}
+Она получает такие же параметры, что и ее последовательная версия. Найдем высоту параллелепипеда: \lstinline$double height = (z2 - z1) / n;$ и количество испытаний (в том числе и для последнего процесса): \lstinline$int local_n = n / size, remaining = n - (size - 1) * local_n;$.
+Находим границы интегрирования:  \lstinline$double local_z1 = z1 + rank * local_n * height, local_z2 = local_z1 + local_n * height;$. Передаем все эти переменные в последовательную функцию. Получаем посчитанный параллельно интеграл.
+\newpage
+
+% Подтверждение корректности
+\section*{Подтверждение корректности}
+\addcontentsline{toc}{section}{Подтверждение корректности}
+Для подтверждения корректности в программе представлен набор тестов, разработанных с помощью использования Google C++ Testing Framework.
+\par Набор представляет из себя тесты, которые проверяют:
+\begin{itemize}
+\item Корректность входных данных (количество испытаний не может быть отрицательным);
+\item Корректность вычислений (проверка результатов работы последовательной версии, идет сравнение с результатами, полученными аналитическим интегрированием);
+\item Эффективность по времени работы последовательной и параллельной функции.
+\end{itemize}
+\par Прохождение всего набора тестов подтверждает правильность реализации программы.
+\newpage
+
+% Результаты экспериментов
+\section*{Результаты экспериментов}
+\addcontentsline{toc}{section}{Результаты экспериментов}
+Вычислительные эксперименты для оценки временной эффективности параллельной реализации вычисления тройных интегралов методом Монте-Карло проводились на оборудовании со следующей конфигурацией:
+\begin{itemize}
+\item Процессор: Intel Core i3-4130, 3400 MHz, физических ядер: 2, потоков: 4;
+\item Оперативная память: 8192 МБ (DDR3), 800 MHz;
+\item ОС: Microsoft Windows 10 Home, версия 2004 сборка 19041.572.
+\end{itemize}
+
+\par Количество испытаний для оценки быстродействия программы составило \verb|1 000 000|. 
+\par Результаты экспериментов представлены в Таблице 1.
+
+\begin{table}[!h]
+\caption{Результаты вычислительных экспериментов}
+\centering
+\begin{tabular}{| r | r | r | r |}
+\hline
+Количество процессов & Последовательно & Параллельно & Ускорение  \\[5pt]
+\hline
+1        & 0.335709        & 0.339896     & 0.99       \\
+2        & 0.343937        & 0.1721     & 2.00       \\
+3        & 0.377498        & 0.112703     & 3.35       \\
+4        & 0.338811        & 0.0877148     & 3.86       \\
+5        & 0.340334        & 0.0686788     & 4.95       \\
+6        & 0.338043        & 0.056471     & 5.99       \\
+7        & 0.328287        & 0.0496489     & 6.61	    \\
+8        & 0.333299        & 0.0427445     & 7.80	  \\
+\hline
+\end{tabular}
+\end{table}
+
+\par Из данных, представленных в Таблице 1 видно, что параллельная версия быстрее последовательной, а ее ускорение в общем случае пропорционально количеству запускаемых процессов. Такой хороший результат объясняется тем, что мы использовали относительно большое количество испытаний, из-за чего последовательная версия выполнялась гораздо дольше.
+\newpage
+
+% Заключение
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+В результате лабораторной работы были разработаны последовательная и параллельная реализация подсчета тройных интегралов методом Монте-Карло.
+\par Главной задачей данной лабораторной работы была реализация параллельной версии, которая должна была быть эффективнее последовательной. Эта задача была успешно достигнута, о чем говорят результаты экспериментов, проведенных в ходе работы.
+\par Кроме того, были разработаны и доведены до успешного выполнения тесты, созданные для данного программного проекта с использованием Google C++ Testing Framework и необходимые для подтверждения корректности работы программы.
+\newpage
+
+% Список литературы
+\begin{thebibliography}{1}
+\addcontentsline{toc}{section}{Список литературы}
+\bibitem{Voytishek} Войтишек А.В. Основы метода Монте-Карло: Учеб. пособие / Новосиб. гос. ун-т. Новосибирск, 2010, 108 с. 
+\bibitem{Zorinl} Зорин А.В, Федоткин М.А. Методы Монте-Карло для параллельных вычислений. — М.: Изд-во Московского университета, 2013.
+\bibitem{Gergel} Гергель В.П., Стронгин Р.Г. Высокопроизводительные вычисления для многоядерных многопроцессорных систем. — Н.Новгород: Изд-во ННГУ, 2010.
+\end{thebibliography}
+\newpage
+
+% Приложение
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+
+monte\_carlo.h
+\begin{lstlisting}
+
+// Copyright 2020 Gruzdeva Diana
+#ifndef MODULES_TASK_3_GRUZDEVA_D_MONTE_CARLO_MONTE_CARLO_H_
+#define MODULES_TASK_3_GRUZDEVA_D_MONTE_CARLO_MONTE_CARLO_H_
+
+#include <mpi.h>
+#include <random>
+#include <ctime>
+#include <functional>
+
+double calculateError(int p, int n);
+
+double getSequentialIntegral(double x1, double x2,
+          double y1, double y2, double z1, double z2, int n,
+          std::function<double(double, double, double)> function, time_t seed);
+double getParallelIntegral(double x1, double x2,
+        double y1, double y2, double z1, double z2, int n,
+        std::function<double(double, double, double)> function, time_t seed);
+
+double callFunction(std::function<double(double)> function, double value);
+double linearFunction(double x, double y, double z);
+double polinomFunction(double x, double y, double z);
+double compositeFunction(double x, double y, double z);
+
+#endif  // MODULES_TASK_3_GRUZDEVA_D_MONTE_CARLO_MONTE_CARLO_H_
+\end{lstlisting}
+monte\_carlo.cpp
+\begin{lstlisting}
+// Copyright 2020 Gruzdeva Diana
+
+#include "../../../modules/task_3/gruzdeva_d_monte_carlo/monte_carlo.h"
+#include <random>
+#include <ctime>
+
+double calculateError(int p, int n) {
+    double error = p * sqrt(0.125 / n);
+    return error;
+}
+
+double getSequentialIntegral(double x1, double x2,
+          double y1, double y2, double z1, double z2, int n,
+          std::function<double(double, double, double)> function, time_t seed) {
+    std::mt19937 gen(seed);
+    std::uniform_real_distribution<double> uniform(0, 1);
+    double result = 0.0;
+    double sum = 0.0;
+    for (int i = 0; i < n; i++) {
+        double x = x1 + (x2 - x1) * uniform(gen);
+        double y = y1 + (y2 - y1) * uniform(gen);
+        double z = z1 + (z2 - z1) * uniform(gen);
+        sum += function(x, y, z);
+    }
+    result = sum * (x2 - x1) * (y2 - y1) * (z2 - z1) / n;
+    return result;
+}
+
+double getParallelIntegral(double x1, double x2,
+          double y1, double y2, double z1, double z2, int n,
+          std::function<double(double, double, double)> function, time_t seed) {
+    int size, rank;
+    double height = (z2 - z1) / n;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double result = 0;
+    int local_n = n / size,
+        remaining = n - (size - 1) * local_n;
+    double local_result = 0.0,
+           local_z1 = z1 + rank * local_n * height,
+           local_z2 = local_z1 + local_n * height;
+    if (rank != size - 1) {
+        local_result = getSequentialIntegral(x1, x2, y1, y2, local_z1, local_z2, local_n, function, seed);
+    } else {
+        local_result = getSequentialIntegral(x1, x2, y1, y2, local_z1, z2, remaining, function, seed);
+    }
+    MPI_Reduce(&local_result, &result, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    return result;
+}
+
+double callFunction(std::function<double(double, double, double)> function, double x, double y, double z) {
+    return function(x, y, z);
+}
+
+double linearFunction(double x, double y, double z) {
+    return (x + y + z);
+}
+
+double polinomFunction(double x, double y, double z) {
+    return x * x + y - z * z * z + 6;
+}
+
+double compositeFunction(double x, double y, double z) {
+    return sin(x * y * z);
+}
+\end{lstlisting}
+main.cpp
+\begin{lstlisting}
+// Copyright 2020 Gruzdeva Diana
+#include <gtest-mpi-listener.hpp>
+#include <gtest/gtest.h>
+#include <iostream>
+#include "./monte_carlo.h"
+
+
+TEST(Parallel_Operations_MPI, LINEAR_10_3) {
+    int rank;
+    int n = 1000;
+    double error = calculateError(10, n);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double start = MPI_Wtime();
+    double parallel_result = getParallelIntegral(0.0, 1.0, 0.0, 1.0, 0.0, 1.0, n, linearFunction, time(0));
+    double end = MPI_Wtime();
+    if (rank == 0) {
+        std::cout << end - start << std::endl;
+        start = MPI_Wtime();
+        double sequential_result = getSequentialIntegral(0.0, 1.0, 0.0, 1.0, 0.0, 1.0, n, linearFunction, time(0));
+        double end = MPI_Wtime();
+        std::cout << end - start << std::endl;
+        std::cout << sequential_result << std::endl;
+        ASSERT_LT(std::fabs(parallel_result - sequential_result), error);
+    }
+}
+
+TEST(Parallel_Operations_MPI, LINEAR_10_6) {
+    int rank;
+    int n = 1000000;
+    double error = calculateError(10, n);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double start = MPI_Wtime();
+    double parallel_result = getParallelIntegral(0.0, 1.0, 0.0, 1.0, 0.0, 1.0, n, linearFunction, time(0));
+    double end = MPI_Wtime();
+    if (rank == 0) {
+        std::cout << end - start << std::endl;
+        start = MPI_Wtime();
+        double sequential_result = getSequentialIntegral(0.0, 1.0, 0.0, 1.0, 0.0, 1.0, n, linearFunction, time(0));
+        double end = MPI_Wtime();
+        std::cout << end - start << std::endl;
+        std::cout << sequential_result << std::endl;
+        std::cout << parallel_result << std::endl;
+        ASSERT_LT(std::fabs(parallel_result - sequential_result), error);
+    }
+}
+
+TEST(Parallel_Operations_MPI, POLINOM_10_3) {
+    int rank;
+    int n = 1000;
+    double error = calculateError(300, n);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double start = MPI_Wtime();
+    double parallel_result = getParallelIntegral(0.0, 1.0, 0.0, 1.0, 0.0, 1.0, n, polinomFunction, time(0));
+    double end = MPI_Wtime();
+    if (rank == 0) {
+        std::cout << end - start << std::endl;
+        start = MPI_Wtime();
+        double sequential_result = getSequentialIntegral(0.0, 1.0, 0.0, 1.0, 0.0, 1.0, n, polinomFunction, time(0));
+        double end = MPI_Wtime();
+        std::cout << end - start << std::endl;
+        std::cout << sequential_result << std::endl;
+        std::cout << parallel_result << std::endl;
+        ASSERT_LT(std::fabs(parallel_result - sequential_result), error);
+    }
+}
+
+TEST(Parallel_Operations_MPI, POLINOM_10_6) {
+    int rank;
+    int n = 1000000;
+    double error = calculateError(300, n);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double start = MPI_Wtime();
+    double parallel_result = getParallelIntegral(0.0, 1.0, 0.0, 1.0, 0.0, 1.0, n, polinomFunction, time(0));
+    double end = MPI_Wtime();
+    if (rank == 0) {
+        std::cout << end - start << std::endl;
+        start = MPI_Wtime();
+        double sequential_result = getSequentialIntegral(0.0, 1.0, 0.0, 1.0, 0.0, 1.0, n, polinomFunction, time(0));
+        double end = MPI_Wtime();
+        std::cout << end - start << std::endl;
+        std::cout << sequential_result << std::endl;
+        std::cout << parallel_result << std::endl;
+        ASSERT_LT(std::fabs(parallel_result - sequential_result), error);
+    }
+}
+
+
+TEST(Parallel_Operations_MPI, COMPOSITE_10_3) {
+    int rank;
+    int n = 1000;
+    double error = calculateError(300, n);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double start = MPI_Wtime();
+    double parallel_result = getParallelIntegral(0.0, 1.0, 0.0, 1.0, 0.0, 1.0, n, compositeFunction, time(0));
+    double end = MPI_Wtime();
+    if (rank == 0) {
+        std::cout << end - start << std::endl;
+        start = MPI_Wtime();
+        double sequential_result = getSequentialIntegral(0.0, 1.0, 0.0, 1.0, 0.0, 1.0, n, compositeFunction, time(0));
+        double end = MPI_Wtime();
+        std::cout << end - start << std::endl;
+        std::cout << sequential_result << std::endl;
+        std::cout << parallel_result << std::endl;
+        ASSERT_LT(std::fabs(parallel_result - sequential_result), error);
+    }
+}
+
+TEST(Parallel_Operations_MPI, COMPOSITE_10_6) {
+    int rank;
+    int n = 1000000;
+    double error = calculateError(300, n);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double start = MPI_Wtime();
+    double parallel_result = getParallelIntegral(0.0, 1.0, 0.0, 1.0, 0.0, 1.0, n, compositeFunction, time(0));
+    double end = MPI_Wtime();
+    if (rank == 0) {
+        std::cout << end - start << std::endl;
+        start = MPI_Wtime();
+        double sequential_result = getSequentialIntegral(0.0, 1.0, 0.0, 1.0, 0.0, 1.0, n, compositeFunction, time(0));
+        double end = MPI_Wtime();
+        std::cout << end - start << std::endl;
+        std::cout << sequential_result << std::endl;
+        std::cout << parallel_result << std::endl;
+        ASSERT_LT(std::fabs(parallel_result - sequential_result), error);
+    }
+}
+
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    MPI_Init(&argc, &argv);
+
+    ::testing::AddGlobalTestEnvironment(new GTestMPIListener::MPIEnvironment);
+    ::testing::TestEventListeners& listeners =
+        ::testing::UnitTest::GetInstance()->listeners();
+
+    listeners.Release(listeners.default_result_printer());
+    listeners.Release(listeners.default_xml_generator());
+
+    listeners.Append(new GTestMPIListener::MPIMinimalistPrinter);
+    return RUN_ALL_TESTS();
+}
+\end{lstlisting}
+
+\end{document}
