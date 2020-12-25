@@ -1,0 +1,453 @@
+\documentclass{report}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage[14pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+
+\geometry{a4paper,top=2cm,bottom=3cm,left=2cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+\setlist{nolistsep, itemsep=0.3cm,parsep=0pt}
+
+\lstset{language=C++,
+	basicstyle=\footnotesize,
+	keywordstyle=\color{blue}\ttfamily,
+	stringstyle=\color{red}\ttfamily,
+	commentstyle=\color{green}\ttfamily,
+	morecomment=[l][\color{magenta}]{\#}, 
+	tabsize=4,
+	breaklines=true,
+	breakatwhitespace=true,
+	title=\lstname,       
+}
+
+\makeatletter
+\renewcommand\@biblabel[1]{#1.\hfil}
+\makeatother
+
+\begin{document}
+	
+	\begin{titlepage}
+		
+		\begin{center}
+			Министерство науки и высшего образования Российской Федерации
+		\end{center}
+		
+		\begin{center}
+			Федеральное государственное автономное образовательное учреждение высшего образования \\
+			Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского
+		\end{center}
+		
+		\begin{center}
+			Институт информационных технологий, математики и механики
+		\end{center}
+		
+		\vspace{4em}
+		
+		\begin{center}
+			\textbf{\LargeОтчет по лабораторной работе} \\
+		\end{center}
+		\begin{center}
+			\textbf{\Large«Вычисление многомерных интегралов методом трапеций»} \\
+		\end{center}
+		
+		\vspace{4em}
+		
+		\newbox{\lbox}
+		\savebox{\lbox}{\hbox{text}}
+		\newlength{\maxl}
+		\setlength{\maxl}{\wd\lbox}
+		\hfill\parbox{7cm}{
+			\hspace*{5cm}\hspace*{-5cm}\textbf{Выполнил:} \\ студент группы 381806-1 \\ Пронин И. П.\\
+			\\
+			\hspace*{5cm}\hspace*{-5cm}\textbf{Проверил:}\\ Нестеров А. Ю.\\
+		}
+		\vspace{\fill}
+		
+		\begin{center} Нижний Новгород \\ 2020 \end{center}
+		
+	\end{titlepage}
+	
+	\setcounter{page}{2}
+	
+	% Содержание
+	\tableofcontents
+	\newpage
+	
+	% Введение
+	\section*{Введение}
+	\addcontentsline{toc}{section}{Введение}
+	Задача вычисления определенного интеграла I для некоторой заданной на отрезке [a, b] функции f(x) является классической задачей математического анализа.
+	\par Зачастую приходится использовать приближенные формулы для вычисления определенного интеграла на основе значений подынтегральной функции f(x), так как нахождение значения интеграла с помощью формулы Ньютона - Лейбница $\int_a^b f(x)dx$ = F(b) - F(a) чревато некоторыми вычислительными сложностями. Такие специальные приближенные формулы называют квадратурными формулами или формулами численного интегрирования.
+	\par Большинство методов численного интегрирования, объединены общим принципом: область интегрирования разбивается по каждой из осей на равное количество частей. В каждой из полученных маленьких областей интеграл приближается простой функцией (например, линейной), значение которой вычисляется явно (путем вычисления подынтегрального выражения в одной или нескольких точках). Ввиду линейности оператора интегрирования по областям полученные значения суммируются и представляют собой результат интегрирования.
+	\par К данному типу относятся одномерные метод прямоугольников, метод трапеций, метод парабол (метод Симпсона). Перечисленные методы обобщается и для многомерного случая.
+	
+	\newpage
+	
+	% Постановка задачи
+	\section*{Постановка задачи}
+	\addcontentsline{toc}{section}{Постановка задачи}
+	Основной задачей проекта является изучение метода трапеций для решения множественных интегралов различной сложности, а также разработка программы, решающей подобные определённые интегралы. 
+	Подзадачи: 
+	\par•	Реализовать последовательный алгоритм метода трапеций для вычисления интеграла 
+	\par•	Реализовать параллельный алгоритм метода трапеций для вычисления интеграла (данный алгоритм подразумевает распараллеливание задачи на заданное число процессов с целью увеличения производительности). 
+	\par•	Протестировать алгоритмы с помощью тестов, реализованных на  Google C++ Testing Framework 
+	\par•	Сравнить время работы последовательного и параллельного алгоритмов
+	
+	\newpage
+	
+	% Описание алгоритма
+	\section*{Описание алгоритма}
+	\addcontentsline{toc}{section}{Описание алгоритма}
+	Предположим, что нам нужно приближенно вычислить определенный интеграл $\int_a^b f(x)dx$, подынтегральная функция которого y = f(x) непрерывна на отрезке [a;b]. Для этого разделим отрезок [a;b] на несколько равных интервалов длины h точками  a=x0<x1<x2<...<xn-1<xn=b. Обозначим количество полученных интервалов как n.
+	\par Найдем шаг разбиения: h = (b-a)/n. Определим узлы из равенства xi=a+i * h, i=0, 1,..., n.
+	\par На элементарных отрезках рассмотрим подынтегральную функцию [xi-1; xi], i=1, 2,.., n.
+	\par Возьмем выражение(f(xi-1)+f(xi))/2 * h в качестве приближенного значения интеграла $\int_{xi-1}^{xi} f(x)dx$. Т.е. примем $\int_{xi-1}^{xi} f(x)dx$ = (f(xi-1)+f(xi))/2 * h.
+	\newpage
+	
+	% Описание схемы распараллеливания
+	\section*{Описание схемы распараллеливания}
+	\addcontentsline{toc}{section}{Описание схемы распараллеливания}
+	В лабораторной работе осуществляется распараллеливание многомерного интеграла на заданное число процессов. 
+	\par Каждый процесс получает пределы интегрирования функции, величину h, заранее посчитанную на нулевом процессе, а так же количество отрезков разбиения. Затем исходя из количества отрезков разбиения и количества выделенных процессов рассчитывается количество точек, приходящееся на каждый процесс. Каждый процесс в свою очередь находит свои точки и рассчитывает значения функции в этих точках. В самом конце значения функции со всех процессов складываются и умножаются на величину h. 
+	\newpage
+	
+	% Описание программной реализации
+	\section*{Описание программной реализации}
+	\addcontentsline{toc}{section}{Описание программной реализации}
+	Программа состоит из заголовочного файла trapeze.h, в котором объявлены функции:
+	\begin{lstlisting}
+	double SequentialOperations(double(*function)(std::vector<double>), std::vector<double>, std::vector<double>, int)\end{lstlisting} - вычисление многомерного интеграла методом трапеций, последовательная версия
+    \begin{lstlisting}
+	double ParllelOperations(double(*function)(std::vector<double>), std::vector<double>, std::vector<double>, int)\end{lstlisting} - вычисление многомерного интеграла методом трапеций, параллельная версия 
+	\par файла trapeze.cpp в котором содержится реализация данных функций и файла main.cpp в котором содержаться тесты для проверки корректности программы.
+	\newpage
+	
+	% Подтверждение корректности
+	\section*{Подтверждение корректности}
+	\addcontentsline{toc}{section}{Подтверждение корректности}
+	Корректность работы программы подтверждается пятью тестами:
+	\begin{lstlisting}
+		TEST(ParallelOperationsMPI, function1)
+	\end{lstlisting} - взятие двумерного интеграла от функции (x + y) по области x : [1, 2], y : [5, 6] c числом разбиений равным 100. 
+	\begin{lstlisting}
+		TEST(ParallelOperationsMPI, function2)
+	\end{lstlisting}
+	- взятие двумерного интеграла от функции (x * x + y) по области x : [-1, 5], y : [2, 6] c числом разбиений равным 100. 
+	\begin{lstlisting}
+	TEST(ParallelOperationsMPI, function3)
+	\end{lstlisting}
+	 - взятие трехмерного интеграла от функции (x + y + z) по области x : [-1, 5], y : [2, 6], z : [3, 10] c числом разбиений равным 100. 
+	\begin{lstlisting}
+	TEST(ParallelOperationsMPI, function4)
+    \end{lstlisting}
+	 - взятие трехмерного интеграла от функции (x * x + y + z * z) по области x : [-1, 5], y : [2, 12], z : [3, 20] c числом разбиений равным 100.
+	\begin{lstlisting}
+	TEST(ParallelOperationsMPI, function5)
+    \end{lstlisting}
+	 - взятие двумерного интеграла от функции (cos(x) + sin(y)) по области x : [-1, 5], y : [11, 32] c числом разбиений равным 2000.  
+	\par Все тесты проходят проверку, что является доказательством корректной работы программы.
+	\newpage
+	
+	% Результаты экспериментов
+	\section*{Результаты экспериментов}
+	\addcontentsline{toc}{section}{Результаты экспериментов}
+	Эксперименты проводились при взятии  двумерного интеграла от функции (cos(x) + sin(y)) по области x : [-1, 5], y : [11, 32] c числом разбиений равным 2000 на четырехъядерном процессоре.   
+	\begin{table}[!h]
+		{Результаты экспериментов}
+		\centering
+		\begin{tabular}{lllll}
+			Количество процессов &Последовательный алгоритм, с.  &Параллельный алгоритм, с. \\
+			2        & 0.470852           & 0.242908       \\
+			4        & 0.453265           & 0.110226       \\
+			8       & 0.336512           & 0.092426       \\     
+			
+		\end{tabular}
+	\end{table}
+	\par Как видно при увеличении числа процессов наблюдается значительное ускорение работы алгоритма. На восьми процессах такого значительного прироста ускорения не происходит из-за ограничений, связанных с характеристиками процессора. 
+	\par По результатам можно сделать вывод, что параллельное выполнение программы выигрывает во времени у последовательного.
+	
+	\newpage
+	
+	% Заключение
+	\section*{Заключение}
+	\addcontentsline{toc}{section}{Заключение}
+    В ходе работы реализованы последовательная и параллельная версия алгоритма трапеций для вычисления многомерных интегралов. А также выполнены все поставленные подзадачи. 
+	\newpage
+	
+	% Список литературы
+	\begin{thebibliography}{1}
+		\addcontentsline{toc}{section}{Список литературы}
+		\bibitem{1}	Самарский А.А.  
+		«Введение в численные методы»  
+		Книга написана на основе курса лекций, читавшихся автором па факультете вычислительной математики и кибернетики МГУ  1982 год  272 страницы 
+		
+		\bibitem{2} Метод трапеций (zaochnik.com)
+	\end{thebibliography}
+	\newpage
+	
+	% Приложение
+	\section*{Приложение}
+	\addcontentsline{toc}{section}{Приложение}
+	В данном разделе находится код, написанный в рамках лабораторной работы.
+	\begin{lstlisting}
+		// trapeze.h
+		
+		// Copyright 2020 Pronin Igor
+		#ifndef MODULES_TASK_3_PRONIN_I_INTEGRAL_TRAPEZE_TRAPEZE_H_
+		#define MODULES_TASK_3_PRONIN_I_INTEGRAL_TRAPEZE_TRAPEZE_H_
+		#include <mpi.h>
+		#include <vector>
+		double SequentialOperations(double(*function)(std::vector<double>), std::vector<double>, std::vector<double>, int);
+		double ParllelOperations(double(*function)(std::vector<double>), std::vector<double>, std::vector<double>, int);
+		#endif  // MODULES_TASK_3_PRONIN_I_INTEGRAL_TRAPEZE_TRAPEZE_H_
+	\end{lstlisting}
+	\begin{lstlisting}
+		//trapeze.cpp
+		
+	// Copyright 2020 Pronin Igor
+	#include <mpi.h>
+	#include <vector>
+	#include <cmath>
+	#include "../../../modules/task_3/pronin_i_integral_trapeze/trapeze.h"
+	double SequentialOperations(double(*function)(std::vector<double>),
+	std::vector<double> a, std::vector<double> b, int n) {
+		size_t mer = a.size();
+		double result = 0;
+		std::vector<double> h(mer);
+		std::vector<double> points(mer);
+		for (size_t i = 0; i < mer; i++)
+		h[i] = (b[i] - a[i]) / n;
+		int count = pow(n, mer);
+		for (int i = 0; i < count; i++) {
+			for (size_t j = 0; j < mer; j++)
+			points[j] = a[j] + h[j] * (i % n + 0.5);
+			double f = function(points);
+			result = result + f;
+		}
+		for (size_t i = 0; i < mer; i++)
+		result = result * h[i];
+		return result;
+	}
+	
+	double ParllelOperations(double(*function)(std::vector<double>),
+	std::vector<double> a, std::vector<double> b, int n) {
+		int size, rank;
+		MPI_Comm_size(MPI_COMM_WORLD, &size);
+		MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+		size_t mer = a.size();
+		std::vector<double> h(mer);
+		std::vector<double> points(mer);
+		
+		std::vector<double> acopy(mer);
+		std::vector<double> bcopy(mer);
+		int ncopy = n;
+		
+		int count = 0;
+		if (rank == 0) {
+			for (size_t i = 0; i < mer; i++) {
+				h[i] = (b[i] - a[i]) / n;
+				acopy[i] = a[i];
+				bcopy[i] = b[i];
+			}
+			count = pow(n, mer);
+		}
+		MPI_Bcast(&count, 1, MPI_INT, 0, MPI_COMM_WORLD);
+		MPI_Bcast(&ncopy, 1, MPI_INT, 0, MPI_COMM_WORLD);
+		MPI_Bcast(&h[0], mer, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		MPI_Bcast(&acopy[0], mer, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		MPI_Bcast(&bcopy[0], mer, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		
+		int ostatok = count % size;
+		int step = count / size;
+		int rankstep = 0;
+		double result = 0.0;
+		
+		if (rank == 0) {
+			rankstep = step + ostatok;
+			for (int i = 0; i < rankstep; i++) {
+				for (size_t j = 0; j < mer; j++)
+				points[j] = a[j] + h[j] * (i % n + 0.5);
+				double f = function(points);
+				result = result + f;
+			}
+		} else {
+			rankstep = rank * step + ostatok;
+			for (int i = 0; i < step; i++) {
+				for (size_t j = 0; j < mer; j++)
+				points[j] = a[j] + h[j] * (rankstep % n + 0.5);
+				double f = function(points);
+				result = result + f;
+				rankstep++;
+			}
+		}
+		double itog = 0.0;
+		MPI_Reduce(&result, &itog, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+		for (size_t i = 0; i < mer; i++)
+		itog = itog * h[i];
+		return itog;
+	}
+	\end{lstlisting}
+	\begin{lstlisting}
+		//main.cpp
+		
+		// Copyright 2020 Pronin Igor
+		#include <gtest-mpi-listener.hpp>
+		#include <gtest/gtest.h>
+		#include <mpi.h>
+		#include <vector>
+		#include <cmath>
+		#include "./trapeze.h"
+		
+		double function1(std::vector<double> node) {
+			double x = node[0];
+			double y = node[1];
+			return (x + y);
+		}
+		double function2(std::vector<double> node) {
+			double x = node[0];
+			double y = node[1];
+			return (x * x + y);
+		}
+		double function3(std::vector<double> node) {
+			double x = node[0];
+			double y = node[1];
+			double z = node[2];
+			return(x + y + z);
+		}
+		double function4(std::vector<double> node) {
+			double x = node[0];
+			double y = node[1];
+			double z = node[2];
+			return(x * x + y + z * z);
+		}
+		double function5(std::vector<double> node) {
+			double x = node[0];
+			double y = node[1];
+			return(cos(x) + sin(y));
+		}
+		
+		TEST(Parallel_Operations_MPI, function1) {
+			int rank;
+			MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+			int mer = 2;
+			int n = 100;
+			std::vector<double> a(mer);
+			std::vector<double> b(mer);
+			a = { 1, 2 };
+			b = { 5, 6 };
+			double presult = ParllelOperations(function1, a, b, n);
+			if (rank == 0) {
+				double sresult = SequentialOperations(function1, a, b, n);
+				double error = 0.0001;
+				ASSERT_NEAR(presult, sresult, error);
+			}
+		}
+		
+		TEST(Parallel_Operations_MPI, function2) {
+			int rank;
+			MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+			int mer = 2;
+			int n = 100;
+			std::vector<double> a(mer);
+			std::vector<double> b(mer);
+			a = { -1, 2 };
+			b = { 5, 6 };
+			double presult = ParllelOperations(function2, a, b, n);
+			if (rank == 0) {
+				double sresult = SequentialOperations(function2, a, b, n);
+				double error = 0.0001;
+				ASSERT_NEAR(presult, sresult, error);
+			}
+		}
+		
+		TEST(Parallel_Operations_MPI, function3) {
+			int rank;
+			MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+			int mer = 2;
+			int n = 100;
+			std::vector<double> a(mer);
+			std::vector<double> b(mer);
+			a = { 5, 2, 3 };
+			b = { -1, 6, 10 };
+			double presult = ParllelOperations(function3, a, b, n);
+			if (rank == 0) {
+				double sresult = SequentialOperations(function3, a, b, n);
+				double error = 0.0001;
+				ASSERT_NEAR(presult, sresult, error);
+			}
+		}
+		
+		TEST(Parallel_Operations_MPI, function4) {
+			int rank;
+			MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+			int mer = 2;
+			int n = 100;
+			std::vector<double> a(mer);
+			std::vector<double> b(mer);
+			a = { 5, 2, 3 };
+			b = { -1, 12, 20 };
+			double presult = ParllelOperations(function4, a, b, n);
+			if (rank == 0) {
+				double sresult = SequentialOperations(function4, a, b, n);
+				double error = 0.0001;
+				ASSERT_NEAR(presult, sresult, error);
+			}
+		}
+		
+		TEST(Parallel_Operations_MPI, function5) {
+			int rank;
+			MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+			int mer = 2;
+			int n = 100;
+			std::vector<double> a(mer);
+			std::vector<double> b(mer);
+			a = { -1, 11 };
+			b = { 5, 32 };
+			double presult = ParllelOperations(function5, a, b, n);
+			if (rank == 0) {
+				double sresult = SequentialOperations(function5, a, b, n);
+				double error = 0.0001;
+				ASSERT_NEAR(presult, sresult, error);
+			}
+		}
+		
+		int main(int argc, char** argv) {
+			::testing::InitGoogleTest(&argc, argv);
+			MPI_Init(&argc, &argv);
+			
+			::testing::AddGlobalTestEnvironment(new GTestMPIListener::MPIEnvironment);
+			::testing::TestEventListeners& listeners =
+			::testing::UnitTest::GetInstance()->listeners();
+			
+			listeners.Release(listeners.default_result_printer());
+			listeners.Release(listeners.default_xml_generator());
+			
+			listeners.Append(new GTestMPIListener::MPIMinimalistPrinter);
+			return RUN_ALL_TESTS();
+		}
+		
+		int main(int argc, char* argv[]) {
+			::testing::InitGoogleTest(&argc, argv);
+			MPI_Init(&argc, &argv);
+			
+			::testing::AddGlobalTestEnvironment(new GTestMPIListener::MPIEnvironment);
+			::testing::TestEventListeners& listeners =
+			::testing::UnitTest::GetInstance()->listeners();
+			
+			listeners.Release(listeners.default_result_printer());
+			listeners.Release(listeners.default_xml_generator());
+			
+			listeners.Append(new GTestMPIListener::MPIMinimalistPrinter);
+			return RUN_ALL_TESTS();
+		}
+	\end{lstlisting}
+\end{document}
