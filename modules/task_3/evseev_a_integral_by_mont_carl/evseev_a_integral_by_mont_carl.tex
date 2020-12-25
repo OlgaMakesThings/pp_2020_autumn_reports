@@ -86,6 +86,7 @@
 \\
 \hspace*{5cm}\hspace*{-5cm}\textbf{Проверил:}\\ доцент кафедры МОСТ, \\ кандидат технических наук \\ Сысоев А. В.\\
 }
+
 \vspace{\fill}
 
 \begin{center} Нижний Новгород \\ 2020 \end{center}
@@ -173,7 +174,6 @@ for (unsigned int i = 0; i < points.size (); i++) {
 \begin{lstlisting}  
 for (int i = 0; i < number_of_points; ++i) {
     std::vector<double> cpoint;
-    // Ниже выбираем отделбную точку
     for (unsigned int j = 0; j < dimension; ++j) {
       cpoint.push_back (p[dimension * i + j]);
     }
@@ -333,6 +333,8 @@ double MonteCarloSequential(
 \begin{lstlisting}
 // integral_by_mont_carl.cpp
 // Copyright 2020 Evseev Alexander
+
+#include "../../../modules/task_3/evseev_a_intergral_by_mont_carl/integral_by_mont_carl.h"
 #include <mpi.h>
 #include <algorithm>
 #include <ctime>
@@ -340,7 +342,6 @@ double MonteCarloSequential(
 #include <random>
 #include <vector>
 
-#include "../../../modules/task_3/evseev_a_intergral_by_mont_carl/integral_by_mont_carl.h"
 
 double MonteCarloSequential(
     std::vector<double> a, double sd,
