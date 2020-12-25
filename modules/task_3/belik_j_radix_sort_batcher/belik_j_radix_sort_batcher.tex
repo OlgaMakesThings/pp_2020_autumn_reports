@@ -1,0 +1,490 @@
+\documentclass{report}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage[14pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+
+\geometry{a4paper,top=2cm,bottom=3cm,left=2cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+\setlist{nolistsep, itemsep=0.3cm,parsep=0pt}
+
+\lstset{language=C++,
+	basicstyle=\footnotesize,
+	keywordstyle=\color{blue}\ttfamily,
+	stringstyle=\color{red}\ttfamily,
+	commentstyle=\color{green}\ttfamily,
+	morecomment=[l][\color{magenta}]{\#}, 
+	tabsize=4,
+	breaklines=true,
+	breakatwhitespace=true,
+	title=\lstname,       
+}
+
+\makeatletter
+\renewcommand\@biblabel[1]{#1.\hfil}
+\makeatother
+
+\begin{document}
+	
+	\begin{titlepage}
+		
+		\begin{center}
+			Министерство науки и высшего образования Российской Федерации
+		\end{center}
+		
+		\begin{center}
+			Федеральное государственное автономное образовательное учреждение высшего образования \\
+			Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского
+		\end{center}
+		
+		\begin{center}
+			Институт информационных технологий, математики и механики
+		\end{center}
+		
+		\vspace{4em}
+		
+		\begin{center}
+			\textbf{\LargeОтчет по лабораторной работе} \\
+		\end{center}
+		\begin{center}
+			\textbf{\Large«Поразрядная сортировка для целых чисел с четно-нечетным слиянием Бэтчера»} \\
+		\end{center}
+		
+		\vspace{4em}
+		
+		\newbox{\lbox}
+		\savebox{\lbox}{\hbox{text}}
+		\newlength{\maxl}
+		\setlength{\maxl}{\wd\lbox}
+		\hfill\parbox{7cm}{
+			\hspace*{5cm}\hspace*{-5cm}\textbf{Выполнил:} \\ студент группы 381806-1 \\ Белик Ю. А.\\
+			\\
+			\hspace*{5cm}\hspace*{-5cm}\textbf{Проверил:}\\ доцент кафедры МОСТ, \\ кандидат технических наук \\ Сысоев А. В.\\
+		}
+		\vspace{\fill}
+		
+		\begin{center} Нижний Новгород \\ 2020 \end{center}
+		
+	\end{titlepage}
+	
+	\setcounter{page}{2}
+	
+	% Содержание
+	\tableofcontents
+	\newpage
+	
+	% Введение
+	\section*{Введение}
+	\addcontentsline{toc}{section}{Введение}
+	В настоящее время наука и технологии шагают вперед семимильными шагами. Чтобы идти в ногу с прогрессом, приходится постоянно совершенствовать свои знания, умения и навыки, а на это требуется достаточно много времени. В целях освобождения времени для таких фундаментальных задач нужно минимализировать его затраты на небольшие задачи, которые можно решить один раз вместо того, чтобы каждый раз делать все заново.
+	\par Именно с этой целью пишутся программы, совершающие элементарные операции по обработке данных. Примером служит данная работа, в которой реализован один из методов сортировок данных.
+	\newpage
+	
+	% Постановка задачи
+	\section*{Постановка задачи}
+	\addcontentsline{toc}{section}{Постановка задачи}
+	Необходимо реализовать последовательную и параллельную реализации поразрядной сортировки целых чисел с четно-нечетным слиянием Бэтчера, провести тесты для оценки времени и подтверждения корректности алгоритма. Сделать выводы по полученным результатам.
+	\newpage
+	
+	% Описание алгоритма
+	\section*{Описание алгоритма}
+	\addcontentsline{toc}{section}{Описание алгоритма}
+	При поразрядной сортировке на вход приходит вектор целых чисел. В цикле из всех элементов вектора выбирается максимальный.
+	\par В новом цикле до тех пор, пока не обнулится максимальный элемент, все элементы вектора сортируются поразрядно:
+	\begin{itemize}
+		\item Заполняется массив, хранящий колличество элементов вектора по текущему разряду. То есть, если текущий разряд единицы, то нулевой элемент этого массива будет равен количеству элементов вектора, у которых в разряде единиц стоят нули.
+		\item С первого по последний элементы этого массива суммируются, для того, чтобы узнать позицию, с которой в новом векторе необходимо выставлять элементы.
+		\item Новый вектор формируется из элементов старого, выставляя элементы по позициям, указанных в массиве.
+		\item Старый вектор приранивается к новому для дальнейшей сортировки
+	\end{itemize}
+	\par Таким образом, пройдя по всем разрядам, на выходе мы получим вектор из упорядоченных элементов исходного вектора.
+	\par В алгоритме слияния Бэтчера исходный вектор разбивается на куски, которые локально упорядочиваются. Затем происходит последовательное слияние этих фрагментов, сначала попарно четных с нечетными, затем попарно четные кратные четырем с четными не кратными четырем, после попарно сливаются кратные восьми с фрагментами, индекс которых кратен четырем, но не кратен восьми, и так далее до образования единого целого упорядоченного вектора.
+	\newpage
+	
+	% Описание схемы распараллеливания
+	\section*{Описание схемы распараллеливания}
+	\addcontentsline{toc}{section}{Описание схемы распараллеливания}
+	Так как весь вектор хранится в процессе с рангом 0, первым шагом алгоритма является разбиение вектора и отправка его частей другим процессам с дальнейшей локальной поразрядной сортировкой и перетасовкой элементов (элементы, стоящие на четных позициях перемещаются в первую половину вектора, а на нечетных во вторую) на каждом. 
+	\par Далее в цикле по числу слияний, которое равно округленному в большую сторону логарифму общего числа процессов по основанию 2, происходят последовательные слияния. Сначала сливаются локальные вектора четных (верхний) и нечетных (нижний) процессов, потом процессов, у которых остаток от деления ранга на 4 равен 0 (верхний) и 2 (нижний), затем процессов с рангами, при делении на 8 дают остатки 0 (верхний) и 4 (нижний), и так далее пока не закончатся процессы (где верхний процесс будет содержать итоговый вектор каждого слияния).
+	\par Само слияние происходит следующим образом:
+	\begin{itemize}
+		\item Верхний процесс отправляет нижнему вторую половину локального вектора.
+		\item В это время нижний процесс отправляет верхнему первую половину локального вектора.
+		\item На каждом процессе-участнике слияния происходит частичное слияние с упорядочиванием элементов, на верхнем - первых половин векторов, на нижнем - вторых.
+		\item Нижний процесс отправляет верхнему результат слияния вторых половин локальных векторов. На верхнем процессе происходит итоговое слияние с упорядочиванием элементов.
+		\item Происходит перетасовка элементов, за исключением случая, когда слияние является финальным.
+	\end{itemize}
+	\newpage
+	
+	% Описание программной реализации
+	\section*{Описание программной реализации}
+	\addcontentsline{toc}{section}{Описание программной реализации}
+	Алгоритм поразрядной сортировки реализован в функции
+	\begin{lstlisting}
+		std::vector<int> RadixSort(std::vector<int> vec);
+	\end{lstlisting}
+	\par Входным параметром явлется вектор, элементы которого надо упорядочить. На выходе получаем вектор из упорядоченных элементов.
+	\parАлгоритм слияния реализован в функции
+	\begin{lstlisting}
+		std::vector<int> MergeBatcher(std::vector<int> vec, int n);
+	\end{lstlisting}
+	\par Входным параметром явлется вектор, элементы которого надо упорядочить, и количество элементов этого вектора. На выходе получаем вектор из упорядоченных элементов.
+	\par Для работы механизма слияния реализованы некоторые дополнительные функции
+	\par Функция перетасовки элеметов
+	\begin{lstlisting}
+		std::vector<int> Shuffle(std::vector<int> vec);
+	\end{lstlisting}
+	\par Входным параметром явлется вектор, элементы которого надо перетасовать. На выходе получаем вектор, в котором элементы, стоящие в исходном векторе на нечетных позициях, перенесены во вторую половину, а элементы, стоящие на четных, перенесены в первую половину.
+	\par Алгоритм частичного слияния для вернего процесса реализован в функции
+	\begin{lstlisting}
+		std::vector<int> EMerge(const std::vector<int>& v1, const std::vector<int>& v2);
+	\end{lstlisting}
+	\par Входным параметром являются два вектора, элементы которых надо объединить в один упорядоченный вектор. На выходе получаем вектор из упорядоченных элементов.
+	\par Алгоритм частичного слияния для нижнего процесса реализован в функции
+	\begin{lstlisting}
+		std::vector<int> OMerge(const std::vector<int>& v1, const std::vector<int>& v2);
+	\end{lstlisting}
+	\par Входным параметром являются два вектора, элементы которых надо объединить в один упорядоченный вектор. На выходе получаем вектор из упорядоченных элементов.
+	\par Алгоритм итогового слияния для нижнего процесса реализован в функции
+	\begin{lstlisting}
+		std::vector<int> Merge(std::vector<int> v1, std::vector<int> v2, int evencount, int oddcount);
+	\end{lstlisting}
+	\par Входным параметром являются два вектора, элементы которых надо объединить в один упорядоченный вектор, и число элементов каждого вектора. На выходе получаем вектор из упорядоченных элементов.
+	\newpage
+	
+	% Описание экспериментов
+	\section*{Описание экспериментов}
+	\addcontentsline{toc}{section}{Описание экспериментов}
+	Для подтверждения корректности в программе представлен набор тестов, разработанных с помощью использования Google C++ Testing Framework.
+	\par Набор представляет из себя тесты, которые проверяют работу функций на разных количествах элементов вектора.
+	\par Успешное прохождение всех тестов доказывает корректность работы программного комплекса.
+	\newpage
+	
+	% Результаты экспериментов
+	\section*{Результаты экспериментов}
+	\addcontentsline{toc}{section}{Результаты экспериментов}
+	Для проведения тестов производилась сортировка векторов размером 1000000 значений каждый. 
+	\par Результаты тестов представлены в Таблице 1.
+	\begin{table}[!h]
+		\caption{Результаты экспериментов}
+		\centering
+		\begin{tabular}{lllll}
+			Процессы & Последовательно & Параллельно & Ускорение  \\
+			2        & 1.719           & 1.239       & 1.387      \\
+			3        & 1.653           & 1.294       & 1.277      \\
+			4        & 1.640           & 0.997       & 1.645      \\
+			5        & 1.650           & 1.384       & 1.192      \\
+			6        & 1.645           & 1.195       & 1.377      \\
+			7        & 1.675           & 1.124       & 1.490      \\
+			8        & 1.682           & 0.967       & 1.739
+		\end{tabular}
+	\end{table}
+	\par По данным, полученным в результате тестов, можно сделать вывод о том, что параллельная функция работает действительно быстрее, чем последовательная.
+	\par Можно заметить, что наибольшей эффективность достигается на числе процессов равном степени двойки.
+	\newpage
+	
+	% Заключение
+	\section*{Заключение}
+	\addcontentsline{toc}{section}{Заключение}
+	Все поставленные задачи выполнены. Реализованы параллельная и последовательная функции выполняющие поразрядную сортировку целых чисел с четно-нечетным слиянием Бэтчера. На тестах продемонстрирована эффективность работы параллельной функции. Также реализованы и пройдены тесты, проверящие корректность рабыты функций.
+	\newpage
+	
+	% Список литературы
+	\begin{thebibliography}{1}
+		\addcontentsline{toc}{section}{Список литературы}
+		\bibitem{1} Вирт Н. - "Алгоритмы+структуры данных=программы"
+		\bibitem{2} Кнут Д. - "Искусство программирования. Том 3. Сортировка и поиск"
+		\bibitem{3} Дябилкин Д.А. - "Сортирующие сети"
+	\end{thebibliography}
+	\newpage
+	
+	% Приложение
+	\section*{Приложение}
+	\addcontentsline{toc}{section}{Приложение}
+	В данном разделе находится код, написанный в рамках лабораторной работы.
+	\begin{lstlisting}
+		// RadixSortB.h
+		
+		// Copyright 2020 Belik Julia
+		#ifndef MODULES_TASK_3_BELIK_J_RADIX_SORT_BATCHER_RADIXSORTB_H_
+		#define MODULES_TASK_3_BELIK_J_RADIX_SORT_BATCHER_RADIXSORTB_H_
+		
+		#include <vector>
+		
+		std::vector<int> MergeBatcher(std::vector<int> vec, int n);
+		std::vector<int> Shuffle(std::vector<int> vec);
+		std::vector<int> OMerge(const std::vector<int>& v1, const std::vector<int>& v2);
+		std::vector<int> EMerge(const std::vector<int>& v1, const std::vector<int>& v2);
+		std::vector<int> Merge(std::vector<int> v1, std::vector<int> v2, int evencount, int oddcount);
+		std::vector<int> RadixSort(std::vector<int> vec);
+		std::vector<int> Vector(int n);
+		
+		#endif  // MODULES_TASK_3_BELIK_J_RADIX_SORT_BATCHER_RADIXSORTB_H_
+	\end{lstlisting}
+	\begin{lstlisting}
+		// RadixSortB.cpp
+		// Copyright 2020 Belik Julia
+		#include <mpi.h>
+		#include <ctime>
+		#include <vector>
+		#include <random>
+		#include <algorithm>
+		#include <iostream>
+		#include <utility>
+		#include "../../../modules/task_3/belik_j_radix_sort_batcher/RadixSortB.h"
+		std::vector<int> MergeBatcher(std::vector<int> vec, int n) {
+			int size, rank;
+			MPI_Comm_size(MPI_COMM_WORLD, &size);
+			MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+			const int countint = n / size;
+			const int rem = n % size;
+			std::vector<int> locvec;
+			if ((n <= size * 2 + 1) || (size == 1)) {
+				if (rank == 0)
+				vec = RadixSort(vec);
+				return vec;
+			}
+			if (rank == 0)
+			locvec.reserve(n);
+			locvec.resize(rank == 0 ? countint + rem : countint);
+			MPI_Status status;
+			if (rank == 0) {
+				for (int i = 0; i < countint + rem; i++) {
+					locvec[i] = vec[i];
+				}
+				for (int i = 1; i < size; i++) {
+					MPI_Send(vec.data() + i * countint + rem, countint, MPI_INT, i, 1, MPI_COMM_WORLD);
+				}
+			} else {
+				MPI_Recv(locvec.data(), countint, MPI_INT, 0, 1, MPI_COMM_WORLD, &status);
+			}
+			int nummerge = 1, pow = 2;
+			while (pow < size) {
+				pow *= 2;
+				nummerge++;
+			}
+			locvec = RadixSort(locvec);
+			locvec = Shuffle(locvec);
+			int mergecount = 2, offset = 1, lengths, lengthr;
+			for (int i = 0; i < nummerge; i++) {
+				std::vector<int> res, even, odd;
+				if ((rank % mergecount == 0) && (rank + offset < size)) {
+				lengths = locvec.size() / 2;
+				MPI_Sendrecv(&lengths, 1, MPI_INT, rank + offset, 0, &lengthr, 1, MPI_INT, rank + offset,
+				0, MPI_COMM_WORLD, &status);
+				res.resize(lengthr / 2 + lengthr % 2);
+				MPI_Sendrecv(&locvec[locvec.size() / 2 + locvec.size() % 2], lengths, MPI_INT, rank + offset, 0,
+				&res.front(), lengthr / 2 + lengthr % 2, MPI_INT, rank + offset, 0, MPI_COMM_WORLD, &status);
+				even = EMerge(locvec, res);
+				odd.resize(lengthr / 2 + locvec.size() / 2);
+				MPI_Recv(&odd.front(), lengthr / 2 + locvec.size() / 2, MPI_INT, rank + offset,
+				0, MPI_COMM_WORLD, &status);
+				locvec = Merge(even, odd, even.size(), odd.size());
+				if (i + 1 != nummerge)
+				locvec = Shuffle(locvec);
+			}
+			if ((rank - offset >= 0) && ((rank - offset) % mergecount == 0)) {
+			lengths = locvec.size();
+			MPI_Sendrecv(&lengths, 1, MPI_INT, rank - offset, 0, &lengthr, 1, MPI_INT, rank - offset,
+			0, MPI_COMM_WORLD, &status);
+			res.resize(lengthr);
+			MPI_Sendrecv(locvec.data(), lengths / 2 + lengths % 2, MPI_INT, rank - offset, 0,
+			res.data(), lengthr, MPI_INT, rank - offset, 0, MPI_COMM_WORLD, &status);
+			odd = OMerge(locvec, res);
+			MPI_Send(odd.data(), odd.size(), MPI_INT, rank - offset, 0, MPI_COMM_WORLD);
+		}
+		mergecount *= 2;
+		offset *= 2;
+	}
+	return locvec;
+}
+std::vector<int> Shuffle(std::vector<int> vec) {
+	std::vector<int> tmp(vec.size());
+	for (size_t i = 0; i < vec.size(); i++)
+	tmp[i / 2 + (i % 2) * (vec.size() / 2 + vec.size() % 2)] = vec[i];
+	return tmp;
+}
+std::vector<int> OMerge(const std::vector<int>& v1, const std::vector<int>& v2) {
+	std::vector<int> res(v1.size() / 2 + v2.size());
+	size_t i = v1.size() / 2 + v1.size() % 2, j = 0, k = 0;
+	size_t l = v1.size();
+	while ((i < l) && (j < v2.size())) {
+		if (v1[i] < v2[j])
+		res[k++] = v1[i++];
+		else
+		res[k++] = v2[j++];
+	}
+	while (i < l)
+	res[k++] = v1[i++];
+	while (j < v2.size())
+	res[k++] = v2[j++];
+	return res;
+}
+std::vector<int> EMerge(const std::vector<int>& v1, const std::vector<int>& v2) {
+	std::vector<int> res(v1.size() / 2 + v1.size() % 2 + v2.size());
+	size_t i = 0, j = 0, k = 0;
+	size_t l = v1.size() / 2 + v1.size() % 2;
+	while ((i < l) && (j < v2.size())) {
+		if (v1[i] < v2[j])
+		res[k++] = v1[i++];
+		else
+		res[k++] = v2[j++];
+	}
+	while (i < l)
+	res[k++] = v1[i++];
+	while (j < v2.size())
+	res[k++] = v2[j++];
+	return res;
+}
+std::vector<int> Merge(std::vector<int> v1, std::vector<int> v2, int evencount, int oddcount) {
+	std::vector<int> res(evencount + oddcount);
+	int i = 0, j = 0, k = 0;
+	while ((i < evencount) && (j < oddcount)) {
+		if (v1[i] < v2[j])
+		res[k++] = v1[i++];
+		else
+		res[k++] = v2[j++];
+	}
+	while (i < evencount)
+	res[k++] = v1[i++];
+	while (j < oddcount)
+	res[k++] = v2[j++];
+	return res;
+}
+std::vector<int> RadixSort(std::vector<int> vec) {
+	int max = 0, pos = 1;
+	std::vector<int> res(vec.size());
+	if ((vec.size() == 1) || (vec.size() == 0))
+	return vec;
+	for (size_t i = 1; i < vec.size(); i++)
+	if (max < vec[i])
+	max = vec[i];
+	while (max / pos > 0) {
+		int countdigit[10] = { 0 };
+		for (size_t i = 0; i < vec.size(); i++)
+		countdigit[vec[i] / pos % 10]++;
+		for (int i = 1; i < 10; i++)
+		countdigit[i] += countdigit[i - 1];
+		for (int i = vec.size() - 1; i >= 0; i--)
+		res[--countdigit[vec[i] / pos % 10]] = vec[i];
+		for (size_t i = 0; i < vec.size(); i++)
+		vec[i] = res[i];
+		pos *= 10;
+	}
+	return vec;
+}
+std::vector<int> Vector(int n) {
+	std::mt19937 gen;
+	gen.seed(static_cast<unsigned int>(time(0)));
+	std::vector<int> vec(n);
+	for (int i = 0; i < n; i++)
+	vec[i] = gen() % 100000;
+	return vec;
+}
+\end{lstlisting}
+\begin{lstlisting}
+// main.cpp
+// Copyright 2020 Belik Julia
+#include <gtest-mpi-listener.hpp>
+#include <gtest/gtest.h>
+#include <vector>
+#include <numeric>
+#include <algorithm>
+#include "./RadixSortB.h"
+
+TEST(Radix_Sort_Merge_Batcher, Test_Vector_10) {
+	int rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	std::vector<int> vec;
+	const int n = 10;
+	if (rank == 0) {
+		vec = Vector(n);
+	}
+	std::vector<int> v1 = MergeBatcher(vec, n);
+	if (rank == 0) {
+		std::vector<int> v2 = RadixSort(vec);
+		ASSERT_EQ(v1, v2);
+	}
+}
+TEST(Radix_Sort_Merge_Batcher, Test_Vector_25) {
+	int rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	std::vector<int> vec;
+	int n = 25;
+	if (rank == 0) {
+		vec = Vector(n);
+	}
+	std::vector<int> v1 = MergeBatcher(vec, n);
+	if (rank == 0) {
+		std::vector<int> v2 = RadixSort(vec);
+		ASSERT_EQ(v1, v2);
+	}
+}
+TEST(Radix_Sort_Merge_Batcher, Test_Vector_50) {
+	int rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	std::vector<int> vec;
+	int n = 50;
+	if (rank == 0) {
+		vec = Vector(n);
+	}
+	std::vector<int> v1 = MergeBatcher(vec, n);
+	if (rank == 0) {
+		std::vector<int> v2 = RadixSort(vec);
+		ASSERT_EQ(v1, v2);
+	}
+}
+TEST(Radix_Sort_Merge_Batcher, Test_Vector_100) {
+	int rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	std::vector<int> vec;
+	int n = 100;
+	if (rank == 0) {
+		vec = Vector(n);
+	}
+	std::vector<int> v1 = MergeBatcher(vec, n);
+	if (rank == 0) {
+		std::vector<int> v2 = RadixSort(vec);
+		ASSERT_EQ(v1, v2);
+	}
+}
+TEST(Radix_Sort_Merge_Batcher, Test_Vector_150) {
+	int rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	std::vector<int> vec;
+	int n = 150;
+	if (rank == 0) {
+		vec = Vector(n);
+	}
+	std::vector<int> v1 = MergeBatcher(vec, n);
+	if (rank == 0) {
+		std::vector<int> v2 = RadixSort(vec);
+		ASSERT_EQ(v1, v2);
+	}
+}
+int main(int argc, char** argv) {
+	::testing::InitGoogleTest(&argc, argv);
+	MPI_Init(&argc, &argv);
+	
+	::testing::AddGlobalTestEnvironment(new GTestMPIListener::MPIEnvironment);
+	::testing::TestEventListeners& listeners =
+	::testing::UnitTest::GetInstance()->listeners();
+	
+	listeners.Release(listeners.default_result_printer());
+	listeners.Release(listeners.default_xml_generator());
+	
+	listeners.Append(new GTestMPIListener::MPIMinimalistPrinter);
+	return RUN_ALL_TESTS();
+}
+\end{lstlisting}
+
+\end{document}
