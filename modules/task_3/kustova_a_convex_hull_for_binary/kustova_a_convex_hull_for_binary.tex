@@ -1,0 +1,906 @@
+\documentclass{report}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage[14pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+
+\geometry{a4paper,top=2cm,bottom=3cm,left=2cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+\setlist{nolistsep, itemsep=0.3cm,parsep=0pt}
+
+\lstset{language=C++,
+basicstyle=\footnotesize,
+keywordstyle=\color{blue}\ttfamily,
+stringstyle=\color{red}\ttfamily,
+commentstyle=\color{green}\ttfamily,
+morecomment=[l][\color{magenta}]{\#},
+tabsize=4,
+breaklines=true,
+breakatwhitespace=true,
+title=\lstname,
+}
+
+\makeatletter
+\renewcommand\@biblabel[1]{#1.\hfil}
+\makeatother
+
+\begin{document}
+
+\begin{titlepage}
+
+\begin{center}
+Министерство науки и высшего образования Российской Федерации
+\end{center}
+
+\begin{center}
+Федеральное государственное автономное образовательное учреждение высшего образования \\
+Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского
+\end{center}
+
+\begin{center}
+Институт информационных технологий, математики и механики
+\end{center}
+
+\vspace{4em}
+
+\begin{center}
+\textbf{\LargeОтчет по лабораторной работе} \\
+\end{center}
+\begin{center}
+\textbf{\Large«Построение выпуклой оболочки для компонент бинарного изображения»} \\
+\end{center}
+
+\vspace{4em}
+
+\newbox{\lbox}
+\savebox{\lbox}{\hbox{text}}
+\newlength{\maxl}
+\setlength{\maxl}{\wd\lbox}
+\hfill\parbox{7cm}{
+\hspace*{5cm}\hspace*{-5cm}\textbf{Выполнил:} \\ студент группы 381808-1 \\ Кустова Анастасия\\
+\\
+\hspace*{5cm}\hspace*{-5cm}\textbf{Проверил:}\\ доцент кафедры МОСТ, \\ кандидат технических наук \\ Сысоев А.В.\\
+}
+\vspace{\fill}
+
+\begin{center} Нижний Новгород \\ 2020 \end{center}
+
+\end{titlepage}
+
+\setcounter{page}{2}
+
+\newpage
+
+% Введение
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+Задача построения выпуклых оболочек, является одной из центральных задач вычислительной геометрии. Важность этой задачи происходит не только из-за огромного количества приложений (в распознавании образов, обработке изображений, базах данных, в задаче раскроя и компоновки материалов, математической статистике), но также и из-за полезности выпуклой оболочки как инструмента решения множества задач вычислительной геометрии. Очень широко алгоритмы построения выпуклой оболочки используются в геоинформатике и геоинформационных системах. Выпуклую оболочку объекта можно строить различными аналитическими способами, которые в основном являются сложными. Ниже предлагается один из способов построения выпуклой оболочки на языке C++ с использованием технологий MPI.
+
+\newpage
+
+% Постановка задачи
+\section*{Постановка задачи}
+\addcontentsline{toc}{section}{Постановка задачи}
+В данной работе необходимо реализовать построение выпуклой оболочки для компонент бинарного изображения. Данная работа должна содержать последовательную и параллельную версии. 
+\par
+На основе разработанной программы необходимо провести вычислительные эксперименты, сравнив время работы параллельного и последовательного алгоритмов на разных входных данных и разном количестве процессов, затем сделать вывод об эффективности параллельной версии.
+\par
+Также следует экспериментально проверить корректность разработанных версий алгоритма с помощью Google тестов и проиллюстрировать работу на реальных изображениях.
+\newpage
+
+% Описание алгоритма
+\section*{Описание алгоритма}
+\addcontentsline{toc}{section}{Описание алгоритма}
+1) Для начала необходимо выделить компоненты бинарного изображения.
+\par
+Обход по изображению выполняется из верхнего левого угла. На внешнем цикле – перебор строк, на внутреннем – перебор столбцов строки. Точки с цветом фона опускаем. Нетрудно заметить, что при таком подходе всегда уже обработаны соседи сверху и слева.
+\begin{lstlisting}
+if A = O
+	do nothing
+else if (not B labeled) and (not C labeled)
+	increment label numbering and label A
+else if B xor C labeled
+	copy label to A
+else if B and C labeled
+	if B label = C label
+		copy label to A
+	else
+		copy either B label or C label to A
+record equivalence of labels
+\end{lstlisting}
+\par 
+После обхода всего изображения, следует его повторить и осуществить повторное выделение областей, учитывающее эквивалентности областей.
+\par 
+2) На втором шаге необходимо для каждой компоненты построить выпуклую оболочку.
+\par 
+Построение этой оболочки осуществляется с помощью алгоритма Джарвиса, на вход которого подаётся вектор координат ненулевых (чёрных) пикселей. Описание алгоритма приведено ниже.
+\begin{center}
+Алгоритм Джарвиса
+\end{center}
+\par 
+Пусть на плоскости задано конечное множество точек A. Оболочкой этого множества называется любая замкнутая линия H без самопересечений такая, что все точки из A лежат внутри этой кривой. Если кривая H является выпуклой (например, любая касательная к этой кривой не пересекает ее больше ни в одной точке), то соответствующая оболочка также называется выпуклой. Минимальной выпуклой оболочкой называется выпуклая оболочка минимальной длины (минимального периметра).
+\par 
+Возьмем точку p0 нашего множества с самой маленькой у-координатой (если таких несколько, берем самую правую из них). Добавляем ее в ответ. На каждом следующем шаге для последнего добавленного pi ищем pi+1 среди всех недобавленных точек и p0 с максимальным полярным углом относительно pi (Если углы равны, надо сравнивать по расстоянию). Добавляем pi+1 в ответ. Если pi+1==p0 , заканчиваем алгоритм.
+\par
+3) На третьем шаге в случае работы с реальным изображением необходимо соединить линиями точки, образующие минимальные выпуклые оболочки.
+\par
+Из результата работы предыдущего алгоритма получаем вектор координат точек, образующих выпуклую оболочку. В этом векторе точки уже находятся в том порядке, в котором их нужно соединить.
+\newpage
+
+% Схема распараллеливания
+\section*{Схема распараллеливания}
+\addcontentsline{toc}{section}{Схема распараллеливания}
+На первом шаге – выделение компонент бинарного изображения, каждому процессу достаётся несколько строк матрицы изображения, с которыми он будет работать. Далее каждый процесс отмечает на этих строках связанные компоненты и затем это всё собирается с помощью Allgather в новое изображение. Затем строится граф смежности, определяющий, какие участки изображения относятся к одной компоненте. Далее осуществляется повторное выделение областей, учитывающее эквивалентности областей – изображение разбивается на отдельные участки и каждому процессу достаётся несколько строк матрицы, которые затем собираются в результирующее изображение с помощью Allgather.
+\par
+На втором шаге – алгоритм Джарвиса, вектор, содержащий координаты точек, распределяется с помощью Scatter между всеми процессами. Затем, когда ищутся самые левые и самые нижние точки, то сначала ищутся минимумы на участке у каждого процесса, а затем, эти результаты собираются с помощью Gather на нулевом процессе и там снова ищется минимум. И с помощью Broadcast о результате операции становится известно всем остальным процессам.
+\newpage
+
+% Описание программной реализации
+\section*{Описание программной реализации}
+\addcontentsline{toc}{section}{Описание программной реализации}
+В программе имеются следующие функции и структуры:
+\begin{itemize}
+\item Структура, описывающая координаты пикселя: 
+\end{itemize}
+\begin{lstlisting}
+	struct Point;
+\end{lstlisting}
+\begin{itemize}
+\item Функция, выводящая пиксели изображения через символы на экран (не предназначен для работы с реальным изображением): 
+\end{itemize}
+\begin{lstlisting}
+	void printImage(int ** image, int height, int width);
+\end{lstlisting}
+\begin{itemize}
+\item Функция, которая отмечает на изображении связанные компоненты и выводит количество компонент:
+\end{itemize}
+\begin{lstlisting}
+	std::vector<int> searchConnectedComponents(int ** image, int height, int width);
+\end{lstlisting}
+\begin{itemize}
+\item Функция, которая для каждой компоненты записывает в вектор координаты не нулевых (чёрных пикселей), далее этот список передаёт в функцию buildHull, которая строит выпуклую оболочку: 
+\end{itemize}
+\begin{lstlisting}
+	int ** buildComponentConvexHull(int ** image, int height, int width);
+\end{lstlisting}
+\begin{itemize}
+\item Параллельная реализация алгоритма Джарвиса по построению выпуклой оболочки: 
+\end{itemize}
+\begin{lstlisting}
+	std::vector<Point> buildHull(std::vector<Point> m_set);
+\end{lstlisting}
+\begin{itemize}
+\item Последовательная реализация алгоритма Джарвиса по построению выпуклой оболочки: 
+\end{itemize}
+\begin{lstlisting}
+	std::vector<Point> buildHull_sequential(std::vector<Point> m_set);
+\end{lstlisting}
+\begin{itemize}
+\item Поиск координат самой левой точки:
+\end{itemize}
+\begin{lstlisting}
+	Point find_leftmost_point(std::vector<Point> buf, int rank, int size, int countpr); 
+\end{lstlisting}
+\begin{itemize}
+\item Функция, возвращающая отдельные компоненты изображения:
+\end{itemize}
+\begin{lstlisting}
+	int ** getComponent(int ** image, int height, int width, int number); 
+\end{lstlisting}
+\begin{itemize}
+\item Функция, объединяющая отдельные компоненты в одно изображение:
+\end{itemize}
+\begin{lstlisting}
+	int ** imageOr(int ** image1, int ** image2, int height, int width);
+\end{lstlisting}
+\begin{itemize}
+\item Функция, рисующая выпуклую оболочку:
+\end{itemize}
+\begin{lstlisting}
+	int ** drawLines(int ** image, int height, int width, std::vector<Point> vec);
+\end{lstlisting}
+\newpage
+
+% Описание экспериментов
+\section*{Описание экспериментов}
+\addcontentsline{toc}{section}{Описание экспериментов}
+Эксперименты проводились на 4-х ядерном компьютере с операционной системой – Windows 10, который имеет 8 логических процессоров. Результаты экспериментов приведены в таблице:
+\begin{table}[!h]
+\caption{Результаты вычислительных экспериментов}
+\centering
+\begin{tabular}{lllll}
+Размер & Количество процессов & Паралл. время & Послед. время & Разница\\
+500*500 & 4 & 0.18 & 0.23 & 0.05\\
+500*500 & 6 & 0.215 & 0.443 & 0.228\\
+500*500 & 8 & 0.137 & 0.5 & 0.363\\
+1000*1000 & 3 & 1.3 & 1.457 & 0.157\\
+1000*1000 & 6 & 1.5 & 1.74 & 0.24\\
+1000*1000 & 8 & 1.323 & 1.776 & 0.423\\
+\end{tabular}
+\end{table}
+\par
+По результатам эксперимента, можно сделать вывод о том, что параллельная версия работает быстрее последовательной. И при увеличении размеров исходной матрицы, эта разница становится более заметной.
+\par
+Kорректность работы программы могут результаты гугл-тестов и наглядный пример картинки.
+\newpage
+
+% Заключение
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+В ходе выполнения работы было успешно реализовано построение выпуклой оболочки для компонент бинарного изображения в последовательном и параллельном вариантах. Работоспособность программы была проверена с помощью библиотеки для модульного тестирования и с помощью реального изображения.
+\par 
+Вычислительный эксперимент показал, что параллельный вариант алгоритма предпочтительнее, так как работает быстрее последовательного.
+\newpage
+
+% Список литературы
+\begin{thebibliography}{1}
+\addcontentsline{toc}{section}{Список литературы}
+\bibitem{Gergel}
+Гергель В. П., Стронгин Р. Г. Основы параллельных вычислений для многопроцессорных вычислительных систем. – 2003.
+\bibitem{parallel} Parallel: Лаборатория Параллельных информационных технологий НИВЦ МГУ [Электронный ресурс] // URL: \url {https://parallel.ru/vvv/mpi.html} (дата обращения: 28.11.2020)
+\bibitem{Algolist} Algolist: Алгоритмы, методы, исходники [Электронный ресурс] // URL: \url {http://algolist.manual.ru/sort/radix_sort.php} (дата обращения: 28.11.2020)
+\end{thebibliography}
+\newpage
+
+% Приложение
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+\begin{lstlisting}
+						// main.cpp
+
+// Copyright 2020 Kustova Anastasiya
+#include <gtest-mpi-listener.hpp>
+#include <gtest/gtest.h>
+#include <math.h>
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/opencv.hpp>
+#include <vector>
+#include <iostream>
+#include "./convex_hull_for_binary.h"
+using namespace cv;
+
+int main(int argc, char** argv){
+    MPI_Init(&argc, &argv);
+    int size, rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    Mat image1 = imread("/home/osboxes/Desktop/Jac/Jacoby/modules/task_3/kustova_a_convex_hull_for_binary/6.jpg", IMREAD_COLOR);
+    if (rank == 0) {
+        namedWindow("original", CV_WINDOW_AUTOSIZE);
+        imshow("original", image1);
+        waitKey(0);
+    }
+    Mat image2 = image1;
+    int height = image1.rows;
+    int width = image1.cols;
+    int ** image = new int*[height];
+    for (int i = 0; i < height; i++) {
+        image[i] = new int[width];
+    }
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            if (image1.at<Vec3b>(i, j)[0] >= 200) {
+                image[i][j] = 0;
+            } else {
+                image[i][j] = 1;
+            }
+        }
+    }
+    int ** image_s = image;
+    double st = MPI_Wtime();
+    int ** result = buildImageConvexHull(image, height, width, 0);
+    double end = MPI_Wtime();
+    double st_s = MPI_Wtime();
+    buildImageConvexHull(image_s, height, width, 1);
+    double end_s = MPI_Wtime();
+    if (rank == 0) {
+        std::cout <<"Parallel time: "<<end-st<<std::endl;
+        std::cout <<"Sequential time: "<<end_s-st_s<<std::endl;
+    } 
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            if (result[i][j] == 0) {
+                image2.at<Vec3b>(i, j)[0] = 255;
+                image2.at<Vec3b>(i, j)[1] = 255;
+                image2.at<Vec3b>(i, j)[2] = 255;
+            } else if (result[i][j] == 1){
+                image2.at<Vec3b>(i, j)[0] = 0;
+                image2.at<Vec3b>(i, j)[1] = 0;
+                image2.at<Vec3b>(i, j)[2] = 0;
+            } else {
+                image2.at<Vec3b>(i, j)[0] = 0;
+                image2.at<Vec3b>(i, j)[1] = 0;
+                image2.at<Vec3b>(i, j)[2] = 255;
+            }
+        }
+    }
+    if (rank == 0) {
+        namedWindow("original", CV_WINDOW_AUTOSIZE);
+        imshow("original", image2);
+        waitKey(0);
+        destroyAllWindows();
+    }
+    MPI_Finalize();
+}
+\end{lstlisting}
+\begin{lstlisting}
+						// convex_hull_for_binary.h
+
+// Copyright 2020 Kustova Anastasiya
+#ifndef MODULES_TASK_3_KUSTOVA_A_CONVEX_HULL_FOR_BINARY_CONVEX_HULL_FOR_BINARY_H_
+#define MODULES_TASK_3_KUSTOVA_A_CONVEX_HULL_FOR_BINARY_CONVEX_HULL_FOR_BINARY_H_
+
+#include <mpi.h>
+#include <vector>
+struct Point {
+    int x, y;
+    friend Point operator-(const Point& a, const Point& b) {
+        return Point{a.x - b.x, a.y - b.y};
+    }
+    friend bool operator!=(const Point& a, const Point& b) {
+        return !(a == b);
+    }
+    friend bool operator==(const Point& a, const Point& b) {
+        return (a.x == b.x) && (a.y == b.y);
+    }
+};
+void printImage(int ** image, int height, int width);
+std::vector<int> searchConnectedComponents(int ** image, int height, int width);
+int ** buildComponentConvexHull(int ** image, int height, int width, int type);
+int ** buildImageConvexHull(int ** image, int height, int width, int type);
+std::vector<Point> buildHull(std::vector<Point> m_set);
+std::vector<Point> buildHull_sequential(std::vector<Point> m_set);
+int ** drawLines(int ** image, int height, int width, std::vector<Point> vec);
+double my_abs(double x);
+Point find_leftmost_point(std::vector<Point> buf, int rank, int size, int countpr);
+bool is_counter_clockwise(const Point& p, const Point& i, const Point& q);
+int ** getComponent(int ** image, int height, int width, int number);
+int ** imageOr(int ** image1, int ** image2, int height, int width);
+std::vector<int> combineComponentParts(int ** image, int height, int width, int componentsNumber);
+int giveNumbersToComponents(int ** image, int height, int width);
+void printImage(int ** image, int height, int width);
+#endif  // MODULES_TASK_3_KUSTOVA_A_CONVEX_HULL_FOR_BINARY_CONVEX_HULL_FOR_BINARY_H_
+\end{lstlisting}
+\begin{lstlisting}
+						// convex_hull_for_binary.cpp
+
+// Copyright 2020 Kustova Anastasiya
+#include "../../../modules/task_3/kustova_a_convex_hull_for_binary/convex_hull_for_binary.h"
+#include <mpi.h>
+#include <vector>
+#include <random>
+#include <iostream>
+#include <ctime>
+void printImage(int ** image, int height, int width) {
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            std::cout << image[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+}
+
+int giveNumbersToComponents(int ** image, int height, int width) {
+    int size, rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    int componentsNumber = 0;
+    const int delta_height = height / size;
+    const int rem_height = height % size;
+    int start_height;
+    if (rank < rem_height) {
+        start_height = rank * (delta_height + 1);
+    } else {
+        start_height = delta_height * rank + rem_height;
+    }
+    if (image[start_height][0] != 0) {
+        componentsNumber++;
+        image[start_height][0] = componentsNumber;
+    }
+    for (int j = 1; j < width; j++) {
+        if (image[start_height][j] != 0) {
+            if (image[start_height][j - 1] != 0) {
+                image[start_height][j] = image[start_height][j - 1];
+            } else {
+                componentsNumber++;
+                image[start_height][j] = componentsNumber;
+            }
+        }
+    }
+    int rem_count;
+    if (rank < rem_height) {
+        rem_count = delta_height + 1;
+    } else {
+        rem_count = delta_height;
+    }
+    rem_count += start_height;
+    for (int i = start_height + 1; i < rem_count; i++) {
+        for (int j = 0; j < width; j++) {
+            if (image[i][j] != 0) {
+                if ((j > 0) && (image[i - 1][j - 1] != 0)) {
+                    image[i][j] = image[i - 1][j - 1];
+                } else if (image[i - 1][j] != 0) {
+                    image[i][j] = image[i - 1][j];
+                } else if ((j < width - 1) && (image[i - 1][j + 1] != 0)) {
+                    image[i][j] = image[i - 1][j + 1];
+                } else if ((j > 0) && (image[i][j - 1] != 0)) {
+                    image[i][j] = image[i][j - 1];
+                } else {
+                    componentsNumber++;
+                    image[i][j] = componentsNumber;
+                }
+            }
+        }
+    }
+    if (size > 1) {
+        std::vector<int>nums(size);
+        MPI_Allgather(&componentsNumber, 1, MPI_INT, &nums[0], 1, MPI_INT, MPI_COMM_WORLD);
+        int step = 0;
+        componentsNumber = 0;
+        for (int i = 0; i < size; i++) {
+            if (i < rank)
+            step += nums[i];
+            componentsNumber += nums[i];
+        }
+        if (rank != 0) {
+            for (int i = start_height; i < rem_count; i++) {
+                for (int j = 0; j < width; j++) {
+                    if (image[i][j] != 0) {
+                        image[i][j] += step;
+                    }
+                }
+            }
+        }
+        int k = 0;
+        std::vector<int> send(height*width);
+        for (int i = 0; i < height; i++) {
+            for (int j = 0; j < width; j++) {
+                send[k] = image[i][j];
+                k++;
+            }
+        }
+        std::vector<int> recv(height*width);
+        MPI_Allreduce(&send[0], &recv[0], height*width, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+        k = 0;
+        for (int i = 0; i < height; i++) {
+            for (int j = 0; j < width; j++) {
+                image[i][j] = recv[k];
+                k++;
+            }
+        }
+    }
+    return componentsNumber;
+}
+std::vector<int> combineComponentParts(int ** image, int height, int width, int componentsNumber) {
+    int size, rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    int* graf = new int[componentsNumber * componentsNumber];
+    if (rank == 0) {  
+        for (int i = 0; i < componentsNumber * componentsNumber; i++) {
+                graf[i] = 0;
+            }        
+        for (int i = 1; i < height; i++) {
+            for (int j = 0; j < width; j++) {
+                if (image[i][j] != 0) {
+                    if (j > 0) {
+                        if (image[i - 1][j - 1] != 0 && image[i - 1][j - 1] != image[i][j]) {
+                            int g1 = image[i - 1][j - 1] - 1;
+                            int g2 = image[i][j] - 1;
+                            graf[g1 * componentsNumber + g2] = 1;
+                            graf[g2 * componentsNumber + g1] = 1;
+                        }
+                        if (image[i][j - 1] != 0 && image[i][j - 1] != image[i][j]) {
+                            int g1 = image[i][j - 1] - 1;
+                            int g2 = image[i][j] - 1;
+                            graf[g1 * componentsNumber + g2] = 1;
+                            graf[g2 * componentsNumber + g1] = 1;
+                        }
+                    }
+                    if (j < width - 1) {
+                        if (image[i - 1][j + 1] != 0 && image[i - 1][j + 1] != image[i][j]) {
+                            int g1 = image[i - 1][j + 1] - 1;
+                            int g2 = image[i][j] - 1;
+                            graf[g1 * componentsNumber + g2] = 1;
+                            graf[g2 * componentsNumber + g1] = 1;
+                        }
+                        if (image[i][j + 1] != 0 && image[i][j + 1] != image[i][j]) {
+                            int g1 = image[i][j + 1] - 1;
+                            int g2 = image[i][j] - 1;
+                            graf[g1 * componentsNumber + g2] = 1;
+                            graf[g2 * componentsNumber + g1] = 1;
+                        }
+                    }
+                    if (image[i - 1][j] != 0 && image[i - 1][j] != image[i][j]) {
+                        int g1 = image[i - 1][j] - 1;
+                        int g2 = image[i][j] - 1;
+                        graf[g1 * componentsNumber + g2] = 1;
+                        graf[g2 * componentsNumber + g1] = 1;
+                    }
+                }
+            }
+        }
+        int k;
+        std::vector<int>vec;
+        for (int i = 0; i < componentsNumber; i++) {
+            k = 0;
+            vec.clear();
+            for (int j = 0; j < componentsNumber; j++) {
+                if (graf[i * componentsNumber + j] != 0) {
+                    k++;
+                    vec.push_back(j);
+                }
+            }
+            if (k > 1) {
+                for (unsigned int t = 0; t < vec.size(); t++) {
+                    for (unsigned int p = 0; p < vec.size(); p++) {
+                        graf[vec[t] * componentsNumber + vec[p]] = 1;
+                    }
+                }
+            }
+        }
+    }
+    MPI_Bcast(&graf[0], componentsNumber * componentsNumber, MPI_INT, 0, MPI_COMM_WORLD);
+    std::vector<int> send(height*width);
+    int k = 0;
+    for (int h = 0; h < height; h++) {
+        for (int w = 0; w < width; w++) {
+            send[k] = image[h][w];
+            k++;
+        }
+    }
+    int delta_height = height / size;
+    int rem_height = height % size;
+    int start_height;
+    int rem_count;
+    if (rank < rem_height) {
+        start_height = rank * (delta_height + 1);
+        rem_count = delta_height + 1;
+    } else {
+        start_height = delta_height * rank + rem_height;
+        rem_count = delta_height;
+    }
+    rem_count += start_height;
+    for (int i = componentsNumber - 2; i >= 0; i--) {
+        for (int j = componentsNumber - 1; j >= i + 1; j--) {
+            if (graf[i * componentsNumber + j] != 0) {
+                for (int h = start_height; h < rem_count; h++) {
+                    for (int w = 0; w < width; w++) {
+                        if (image[h][w] == j + 1) {
+                            image[h][w] = i + 1;
+                            send[h * width + w] = image[h][w];
+                        }
+                    }
+                }
+
+            }
+        }
+    }
+    std::vector<int> recv(height*width);
+    MPI_Allreduce(&send[0], &recv[0], height*width, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+    k = 0;
+    for (int h = 0; h < height; h++) {
+        for (int w = 0; w < width; w++) {
+            image[h][w] = recv[k];
+            k++;
+        }
+    } 
+    std::vector<int> components;
+    for (int h = 0; h < height; h++) {
+        for (int w = 0; w < width; w++) {
+            if (image[h][w] != 0) {
+                if (components.empty()) {
+                    components.push_back(image[h][w]);
+                } else {
+                    bool ok = true;
+                    int csize = components.size();
+                    for (int i = 0; i < csize; i++) {
+                        if (components[i] == image[h][w]) {
+                            ok = false;
+                            break;
+                        }
+                    }
+                    if (ok) {
+                        components.push_back(image[h][w]);
+                    }
+                }
+            }
+        }
+    }
+    return components;
+}
+
+std::vector<int> searchConnectedComponents(int ** image, int height, int width) {
+    int componentsNumber = giveNumbersToComponents(image, height, width);
+    std::vector<int> components = combineComponentParts(image, height, width, componentsNumber);
+    return components;
+}
+
+
+int ** imageOr(int ** image1, int ** image2, int height, int width) {
+    int size, rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    int delta_height = height / size;
+    int rem_height = height % size;
+    int start_height;
+    int max_height;
+    if (rank < rem_height) {
+        start_height = rank * (delta_height + 1);
+        max_height = delta_height + 1;
+    } else {
+        start_height = delta_height * rank + rem_height;
+        max_height = delta_height;
+    }
+    max_height += start_height;
+
+    int * resultImage = new int[height * width];
+    for (int i = 0; i < height * width; i++) {
+        resultImage[i] = 0;
+    }
+
+    for (int i = start_height; i < max_height; i++) {
+        for (int j = 0; j < width; j++) {
+            if (image1[i][j] != 0) {
+                resultImage[i * width + j] = image1[i][j];
+            } else if (image2[i][j] != 0) {
+                resultImage[i * width + j] = image2[i][j];
+            } else {
+                resultImage[i * width + j] = 0;
+            }
+        }
+    }
+    std::vector<int> recv(height*width);
+    MPI_Allreduce(&resultImage[0], &recv[0], height*width, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+    int k = 0;
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            image1[i][j] = recv[k];
+            k++;
+        }
+    }
+    return image1;
+}
+
+
+
+int ** buildComponentConvexHull(int ** image, int height, int width, int type) {
+    std::vector<Point> vec;
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            if (image[i][j] != 0) {
+                Point a;
+                a.x = i;
+                a.y = j;
+            vec.push_back(a);
+            }
+        }
+    }
+    std::vector<Point> res;
+    if (type == 0) {
+        res = buildHull(vec);
+    } else {
+        res = buildHull_sequential(vec);
+    }
+    for (unsigned int i = 0; i < res.size(); i++) {
+        int x1 = (int)(res[i].x);
+        int y1 = (int)(res[i].y);
+        image[x1][y1] = 3;  
+    }
+    if (vec.size() != 1) {
+        image = drawLines(image, height, width,res);
+    } 
+    return image;    
+}
+
+int ** getComponent(int ** image, int height, int width, int number) {
+    int ** resultImage = new int*[height];
+    for (int i = 0; i < height; i++) {
+        resultImage[i] = new int[width];
+        for (int j = 0; j < width; j++) {
+            if (image[i][j] == number) {
+                resultImage[i][j] = 1;
+            } else {
+                resultImage[i][j] = 0;
+            }
+        }
+    }
+    return resultImage;
+}
+
+int ** buildImageConvexHull(int ** image, int height, int width, int type) {
+    int ** resultImage = new int*[height];
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    int ** comp = new int*[height];
+    for (int i = 0; i < height; i++) {
+        resultImage[i] = new int[width];
+        comp[i] = new int[width];
+        for (int j = 0; j < width; j++) {
+            resultImage[i][j] = 0;
+            comp[i][j] = image[i][j];
+        }
+    }
+    std::vector<int> components = searchConnectedComponents(comp, height, width);
+    while (!components.empty()) {
+        int component = components.back();
+        components.pop_back();
+        int ** result = buildComponentConvexHull(getComponent(comp, height, width, component), height, width, type);
+        resultImage = imageOr(resultImage, result, height, width);
+    }
+    return resultImage;
+}
+
+bool is_counter_clockwise(const Point& p, const Point& i, const Point& q) {
+  return (i - p).x * (q - p).y - (q - p).x * (i - p).y < 0;
+}
+
+Point find_leftmost_point(std::vector<Point> buf, int rank, int size, int countpr) {
+    Point most_point;
+    if (countpr == 0 || rank == 0) {
+        most_point = buf[0];
+    }
+    for (unsigned int i = 1; i < buf.size(); i++) {
+        if (buf[i].x < most_point.x) {
+            most_point = buf[i];
+        }
+    }
+    std::vector<Point> points(size);
+    if (countpr == 0) {
+        MPI_Gather(&most_point, 2, MPI_INT, &points[0], 2, MPI_INT, 0, MPI_COMM_WORLD);
+    }
+
+    if (rank == 0) {
+        most_point = points[0];
+        for (unsigned int i = 1; i < points.size(); i++) {
+            if (points[i].x < most_point.x) {
+                most_point = points[i];
+            }
+        }
+    }
+    MPI_Bcast(&most_point, 2, MPI_INT, 0, MPI_COMM_WORLD);
+    return most_point;
+}
+
+std::vector<Point> buildHull(std::vector<Point> m_set) {
+    int rank, size;
+    int countpr = 0;    //0 - work all process, 1 - work one process
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    Point leftmost_point;
+    int delta = m_set.size() / size;
+    int rem = m_set.size() % size;
+    if (delta == 0) countpr = 1;
+    std::vector<Point> buffer(delta);
+    MPI_Scatter(&m_set[rem], delta * 2, MPI_INT, &buffer[0], delta * 2, MPI_INT, 0, MPI_COMM_WORLD);
+    if (rank == 0) {
+        buffer.insert(buffer.begin(), m_set.begin(), m_set.begin() + rem);
+    }
+    leftmost_point = find_leftmost_point(buffer, rank, size, countpr);
+    std::vector<Point> hull;
+    std::vector<Point> points(size);
+    Point endpoint;
+    do {
+        hull.push_back(leftmost_point);
+        endpoint = m_set.at(0);
+        if (countpr == 0 || rank == 0) {
+            for (auto i = buffer.begin(); i < buffer.end(); i++) {
+                if (is_counter_clockwise(hull.back(), *i, endpoint) || endpoint == leftmost_point) {
+                    endpoint = *i;
+                }
+            }
+        }
+        if (countpr == 0) {
+            MPI_Gather(&endpoint, 2, MPI_INT, &points[0], 2, MPI_INT, 0, MPI_COMM_WORLD);
+        }
+        if (rank == 0) {
+            for (auto point : points) {
+                if (is_counter_clockwise(hull.back(), point, endpoint) || endpoint == leftmost_point) {
+                    endpoint = point;
+                }
+            }
+        }
+        MPI_Bcast(&endpoint, 2, MPI_INT, 0, MPI_COMM_WORLD);
+        leftmost_point = endpoint;
+    } while (endpoint != hull.at(0));
+    return hull;
+ }
+
+std::vector<Point> buildHull_sequential(std::vector<Point> m_set) {
+    Point leftmost_point = m_set[0];
+    for (unsigned int i = 1; i < m_set.size(); i++) {
+        if (m_set[i].x < leftmost_point.x) {
+            leftmost_point = m_set[i];
+        }
+    }
+    std::vector<Point> hull;
+    Point endpoint;
+    do {
+        hull.push_back(leftmost_point);
+        endpoint = m_set.at(0);
+        for (auto i : m_set) {
+           if (is_counter_clockwise(hull.back(), i, endpoint) || endpoint == leftmost_point) {
+               endpoint = i;
+            }
+        }
+        leftmost_point = endpoint;
+    } while (endpoint != hull.at(0));
+    return hull;
+}
+
+int ** drawLines(int ** image, int height, int width, std::vector<Point> vec)
+{
+    int ** result = image;
+    int x1, y1, x2, y2, start, end;
+    double func, min;
+    int x_min, y_min;
+    for (unsigned int i = 0; i < vec.size(); i++) {
+        x1 = vec[i].x;
+        y1 = vec[i].y;
+        if (i == vec.size() - 1) {
+            x2 = vec[0].x;
+            y2 = vec[0].y;
+        } else {
+        x2 = vec[i+1].x;
+        y2 = vec[i + 1].y;
+        }
+        if (my_abs(x1 - x2) <= 1) {
+            if (y1 < y2) {
+                start = y1;
+                end = y2;
+            } else {
+                start = y2;
+                end = y1;    
+            }
+            for (int k = start; k < end; k++) {
+                result[x1][k] = 2;
+            }
+            continue;            
+        } else if (x1 < x2) {
+            start = x1;
+            end = x2;
+        } else {
+            start = x2;
+            end = x1;
+        }
+        for (int j = start + 1; j < end; j++) {
+            min = width*width;
+            for (int k = 0; k < width; k++) {
+                func = sqrt((x1 - j) * (x1 - j) + (y1 - k)*(y1 - k)) + sqrt((x2 - j) * (x2 - j) + (y2 - k)*(y2 - k));
+                if (func <= min) {
+                    min = func;
+                    x_min = j;
+                    y_min = k;
+                }
+                
+            }
+            if (result[x_min][y_min] != 3)
+             result[x_min][y_min]= 2;
+        }
+    }
+    return result;
+}
+double my_abs(double x) {
+    if (x > 0) {
+        return x;
+    } else {
+        return -x;
+    }
+}
+\end{lstlisting}
+    \end{document}
+
+
