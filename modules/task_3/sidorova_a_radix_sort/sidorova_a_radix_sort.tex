@@ -1,0 +1,661 @@
+\documentclass{report}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage[14pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+
+\geometry{a4paper,top=2cm,bottom=3cm,left=2cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+\setlist{nolistsep, itemsep=0.3cm,parsep=0pt}
+
+\lstset{language=C++,
+		basicstyle=\footnotesize,
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{red}\ttfamily,
+		commentstyle=\color{green}\ttfamily,
+		morecomment=[l][\color{magenta}]{\#}, 
+		tabsize=4,
+		breaklines=true,
+  		breakatwhitespace=true,
+  		title=\lstname,       
+}
+
+\makeatletter
+\renewcommand\@biblabel[1]{#1.\hfil}
+\makeatother
+
+\begin{document}
+
+\begin{titlepage}
+
+\begin{center}
+Министерство науки и высшего образования Российской Федерации
+\end{center}
+
+\begin{center}
+Федеральное государственное автономное образовательное учреждение высшего образования \\
+Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского
+\end{center}
+
+\begin{center}
+Институт информационных технологий, математики и механики
+\end{center}
+
+\vspace{4em}
+
+\begin{center}
+\textbf{\LargeОтчет по лабораторной работе} \\
+\end{center}
+\begin{center}
+\textbf{\Large«Поразрядная сортировка для вещественных чисел (тип double) с четно-нечетным слиянием Бэтчера»} \\
+\end{center}
+
+\vspace{4em}
+
+\newbox{\lbox}
+\savebox{\lbox}{\hbox{text}}
+\newlength{\maxl}
+\setlength{\maxl}{\wd\lbox}
+\hfill\parbox{7cm}{
+\hspace*{5cm}\hspace*{-5cm}\textbf{Выполнил:} \\ студент группы 381806-1 \\ Сидорова А. К.\\
+\\
+\hspace*{5cm}\hspace*{-5cm}\textbf{Проверил:}\\ доцент кафедры МОСТ, \\ кандидат технических наук \\ Сысоев А. В.\\
+}
+\vspace{\fill}
+
+\begin{center} Нижний Новгород \\ 2020 \end{center}
+
+\end{titlepage}
+
+\setcounter{page}{2}
+
+% Содержание
+\tableofcontents
+\newpage
+
+% Введение
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+Сортировки – одни из наиболее распространенных операций обработки данных. Они используются в множестве задач в различных областях и сферах. Но чем больше объем данных, тем дольше время их обработки. Причем даже наиболее оптимальные методы сортировок могут занимать достаточно много времени. Поэтому для достижения наибольшей производительности необходимо распараллелить процесс сортировки. Для этого можно разбить исходные данные на подмассивы меньшего размера, произвести их упорядочивание параллельно, а в конце слить их в один массив. Но само слияние тоже может быть затратной операцией. Использование четно-нечетного слияния Бэтчера вместо обычного слияния может решить эту проблему.
+\par В данном лабораторной работе будет рассмотрена поразрядная сортировка вещественных чисел. Она отличается от многих сортировок тем, что совершенно не требует сравнения сортируемых элементов. Причем процесс сортировки требуется распараллелить. Следовательно, как было сказано раннее, необходимо наиболее оптимально сливать между собой отсортированные подмассивы. Для этого в данном алгоритме сортировки будет использоваться четно-нечетное слияние Бэтчера.
+\newpage
+
+% Постановка задачи
+\section*{Постановка задачи}
+\addcontentsline{toc}{section}{Постановка задачи}
+В рамках лабораторной работы необходимо реализовать последовательную и параллельную реализации поразрядной сортировки вещественных чисел с четно-нечетным слиянием Бэтчера, проверить корректность работы алгоритмов, провести эксперименты для оценки времени. По полученным результатам сделать выводы.
+\par Для реализации параллельной версии необходимо использовать средства MPI. Для проверки корректности работы алгоритмов требуется использовать Google C++ Testing Framework.
+\newpage
+
+% Метод решения
+\section*{Метод решения}
+\addcontentsline{toc}{section}{Метод решения}
+Алгоритм поразрядной сортировки для вещественных чисел заключается в следующем:
+\begin{itemize}
+\item Выбрать позицию младшего байта числа.
+\item Узнать значение для каждого числа массива на выбранной позиции байта и запомнить количество таких значений в данной позиции.
+\item Выписать все упорядоченные по данной позиции байта значения в выходной массив.
+\item Выбрать позицию следующего байта числа и повторить процесс.
+\end{itemize}
+\par В конечном итоге мы пройдем все байты чисел от младшего к старшему и по результату каждого прохода будем получать отсортированный массив по текущей позиции байта. Стоит отметить, что массив также будет отсортирован по байтам, по которым мы уже прошли. В итоге, когда мы пройдем старший байт, массив будет полностью отсортирован.
+\par Однако поразрядная сортировка по своей сути неинтересна для малых массивов. Каждый проход содержит минимум 256 итераций, поэтому при небольших n общее время выполнения может существенно увеличиться.
+\newpage
+
+% Схема распараллеливания
+\section*{Схема распараллеливания}
+\addcontentsline{toc}{section}{Схема распараллеливания}
+Для распараллеливания алгоритма поразрядной сортировки необходимо разделить массив на равные подмассивы, количество которых равно количеству процессов. Так, если размер исходного массива на количество процессов не делится нацело, необходимо в главном процессе добавить в конец фиктивные бесконечные элементы, которые из-за своего большого значения не повлияют на сортировку. Затем корневой процесс должен остальным процессам отдать его часть массива. Каждому процессу необходимо запустить локальную поразрядную сортировку для своего подмассива.
+\par Следующим шагом является само четно-нечетное слияние Бэтчера. В цикле по массиву, который хранит в себе сеть сортировки, то есть пару значений - номера процессов, процессы с номерами, входящие в такую пару, называемую Comparator, должны поделиться между собой данными. Затем каждый процес выполняет упорядоченное слияние своего подмассива с полученным, причем первый процесс сохраняет в свой подмассив первую половину, получившегося массива, а второй - вторую.
+\par В конечном итоге, каждый процесс отправляет свой упорядоченный подмассив корневому процессу, который в свою очередь кладет полученные данные в результирующий массив в порядке номера процесса, от которого пришел подмассив. Таким образом, на выходе корневой процесс имеет отсортированный массив.
+\newpage
+
+% Описание программной реализации
+\section*{Описание программной реализации}
+\addcontentsline{toc}{section}{Описание программной реализации}
+Алгоритм последовательной поразрядной сортировки вызывается с помощью функции:
+\begin{lstlisting}
+std::vector<double> radixSortSequential(const std::vector<double>& src);
+\end{lstlisting}
+\par В качестве входного параметра передается ссылка на вектор, который необходимо отсортировать. Возвращает функция как раз отсортированный по возрастанию вектор.
+\par Для реализации поразрядной сортировки необходимо было выделить отдельно две функции, которые сортируют побайтово. Причем вторая функция сортирует исключительно последний, старший байт.
+\begin{lstlisting}
+std::vector<double> radixSortPass(const std::vector<double>& src, const uint16_t offset);
+std::vector<double> radixSortLastPass(const std::vector<double>& src, const uint16_t offset);
+\end{lstlisting}
+\par В качестве входных данных передается ссылка на входной вектор и номер байта, по которому необходимо отсортировать вещественные числа.
+\par Алгоритм параллельной поразрядной сортировки представляет собой вызов функции:
+\begin{lstlisting}
+std::vector<double> radixSortParallel(const std::vector<double>& src);
+\end{lstlisting}
+\par В качестве входного параметра передается ссылка на вектор, который требуется отсортировать. На выходе - отсортированный по возрастанию вектор.
+\par Построение сети для четно-нечетного слияния Бэтчера представляет собой функции:
+\begin{lstlisting}
+void batcherNetwork(const size_t processCount);
+\end{lstlisting}
+\par На вход требуется подать количество процессов, на которых осуществляется процесс распараллеливания.
+\begin{lstlisting}
+void buildBatcherNetwork(const std::vector<size_t>& processRanks);
+\end{lstlisting}
+\par В качестве входного параметра необходимо передать ссылку на вектор, в котором хранятся номера процессов.
+\begin{lstlisting}
+void buildBatcherComparators(const std::vector<size_t>& leftVector, const std::vector<size_t>& rightVector);
+\end{lstlisting}
+\par В качестве входных параметров необходимо передать ссылки на векторы, в которых хранятся номера процессов, выбранные как раз четным и нечетным правилом.
+\newpage
+
+% Подтверждение корректности
+\section*{Подтверждение корректности}
+\addcontentsline{toc}{section}{Подтверждение корректности}
+Для подтверждения корректности в программе представлен набор тестов, разработанных с помощью использования Google C++ Testing Framework.
+\par Набор представляет из себя тесты, которые проверяют корректность входных данных (вектор, который необходимо отсортировать, должен иметь положительный размер), корректность вычислений (сравнивается полученный благодаря параллельной или последовательной сортировке вектор с вектором, отсортированным с помощью функции сортировки из STL библиотеки), а также эффективность (вычисление занимаемого последовательной и параллельной сортировок времени и сравнение полученных данных).
+\par Успешное прохождение всех тестов доказывает корректность работы программного комплекса.
+\newpage
+
+% Результаты экспериментов
+\section*{Результаты экспериментов}
+\addcontentsline{toc}{section}{Результаты экспериментов}
+Вычислительные эксперименты для оценки эффективности параллельной поразрядной сортировки с четно-нечетным слиянием Бэтчера проводились на оборудовании со следующей аппаратной конфигурацией:
+
+\begin{itemize}
+\item Процессор: Intel Core i3-5005U, 2000 MHz, ядер: 2;
+\item Оперативная память: 8192 МБ (DDR3), 1600 MHz;
+\item ОС: Microsoft Windows 10 Home, версия 1909 сборка 18363.1198.
+\end{itemize}
+
+\par Для проведения экспериментов производилась сортировка векторов размером \verb|20 000 000| значений каждый. 
+\par Результаты экспериментов представлены в Таблице 1.
+
+\begin{table}[!h]
+\caption{Результаты вычислительных экспериментов}
+\centering
+\begin{tabular}{lllll}
+Процессы & Последовательно & Параллельно & Ускорение  \\
+1        & 2.4211          & 2.81991     & 0.86       \\
+2        & 2.35002         & 2.07411     & 1.13       \\
+3        & 2.33893         & 2.18949     & 1.06       \\
+4        & 2.44223         & 1.98813     & 1.23       \\
+5        & 2.43381         & 1.95317     & 1.25       \\
+6        & 2.42043         & 2.62222     & 0.92
+\end{tabular}
+\end{table}
+
+\par По данным, полученным в результате экспериментов, можно сделать вывод о том, что параллельный случай работает действительно быстрее, чем последовательный. Однако можно заметить, что уже при шести процессах появляются регрессии. Это объясняется переключениями между процессами и обменом данными между ними при коллективных операциях.
+\par Кроме того, можно сделать вывод, что при данной аппаратной конфигурации наиболее эффективным будет использование 4-5 процессов для параллельной поразрядной сортировки.
+\newpage
+
+% Заключение
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+В результате лабораторной работы были разработаны последовательная реализация поразрядной сортировки и параллельной с четно-нечетным слиянием Бэтчера.
+\par Основной задачей данной лабораторной работы была реализация параллельной версии, которая должна была быть эффективнее последовательной. Эта задача была успешно достигнута, о чем говорят результаты экспериментов, проведенных в ходе работы. Они показывают, что параллельный вариант работает действительно быстрее, чем последовательный.
+\par Кроме того, были разработаны и доведены до успешного выполнения тесты, созданные для данного программного проекта с использованием Google C++ Testing Framework и необходимые для подтверждения корректности работы программы.
+\newpage
+
+% Список литературы
+\begin{thebibliography}{1}
+\addcontentsline{toc}{section}{Список литературы}
+\bibitem{Sidnev} Сиднев А.А., Сысоев А.В., Мееров И.Б «Лабораторная работа №7. Оптимизация вычислительно трудоемкого программного модуля для архитектуры Intel Xeon Phi. Линейные сортировки». Нижний Новгород, 2007, 56 с. 
+\bibitem{parallel} Parallel: Лаборатория Параллельных информационных технологий НИВЦ МГУ [Электронный ресурс] // URL: \url {https://parallel.ru/vvv/mpi.html} (дата обращения: 28.11.2020)
+\bibitem{Algolist} Algolist: Алгоритмы, методы, исходники [Электронный ресурс] // URL: \url {http://algolist.manual.ru/sort/radix_sort.php} (дата обращения: 28.11.2020)
+\end{thebibliography}
+\newpage
+
+% Приложение
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+В данном разделе находится листинг всего кода, написанного в рамках лабораторной работы.
+\begin{lstlisting}
+// radix_sort.h
+
+// Copyright 2020 Sidorova Alexandra
+#ifndef MODULES_TASK_3_SIDOROVA_A_RADIX_SORT_RADIX_SORT_H_
+#define MODULES_TASK_3_SIDOROVA_A_RADIX_SORT_RADIX_SORT_H_
+
+#include <vector>
+
+std::vector<double> getRandomVector(const size_t size);
+
+std::vector<double> radixSortParallel(const std::vector<double>& src);
+std::vector<double> radixSortSequential(const std::vector<double>& src);
+std::vector<double> radixSortPass(const std::vector<double>& src, const uint16_t offset);
+std::vector<double> radixSortLastPass(const std::vector<double>& src, const uint16_t offset);
+
+void batcherNetwork(const size_t processCount);
+void buildBatcherNetwork(const std::vector<size_t>& processRanks);
+void buildBatcherComparators(const std::vector<size_t>& leftVector, const std::vector<size_t>& rightVector);
+
+#endif  // MODULES_TASK_3_SIDOROVA_A_RADIX_SORT_RADIX_SORT_H_
+\end{lstlisting}
+\begin{lstlisting}
+// radix_sort.cpp
+// Copyright 2020 Sidorova Alexandra
+
+#include <mpi.h>
+#include <memory>
+#include <random>
+#include <ctime>
+#include <vector>
+#include <cstring>
+#include <algorithm>
+#include <limits>
+#include <utility>
+#include "../../../modules/task_3/sidorova_a_radix_sort/radix_sort.h"
+
+#define EPSILON 0.0001
+#define BITS 256
+
+std::vector<std::pair<size_t, size_t>> comparators;
+static uint16_t offset = 0;
+
+std::vector<double> getRandomVector(const size_t size) {
+    if (size <= 0)
+        throw "[Error] Incorrect array size. The size must be positive";
+
+    std::mt19937 gen;
+    gen.seed(static_cast<unsigned int>(time(0) + offset * 10));
+    offset++;
+    std::vector<double> vector(size);
+    for (double& value : vector)
+        value = gen() % 100;
+
+    return vector;
+}
+
+std::vector<double> radixSortParallel(const std::vector<double>& src) {
+    int size, rank;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    int srcSize = -1;
+    if (rank == 0)
+        srcSize = src.size();
+    MPI_Bcast(&srcSize, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    if (srcSize <= 0)
+        throw "[Error] Incorrect array size. The size must be positive";
+
+    std::vector<double> dst(srcSize);
+    if (size == 1 || size >= srcSize) {
+        if (rank == 0)
+            dst = radixSortSequential(src);
+        return dst;
+    }
+
+    std::vector<double> tmp;
+    size_t fictiveValues = 0;
+    if (rank == 0) {
+        tmp = src;
+
+        while (srcSize % size) {
+            tmp.push_back(std::numeric_limits<double>::max());
+            ++srcSize;
+            ++fictiveValues;
+        }
+    }
+
+    MPI_Bcast(&srcSize, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    dst.resize(srcSize);
+
+    int localSize = srcSize / size;
+
+    std::vector<double> localVector(localSize);
+    std::vector<double> bufferVector(localSize);
+    std::vector<double> tmpVector(localSize);
+
+    MPI_Scatter(tmp.data(), localSize, MPI_DOUBLE, &localVector[0], localSize, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    localVector = radixSortSequential(localVector);
+
+    batcherNetwork(size);
+
+    for (size_t i = 0; i < comparators.size(); ++i) {
+        size_t first = comparators[i].first;
+        size_t second = comparators[i]. second;
+        MPI_Status status;
+
+        if (rank == static_cast<int>(first)) {
+            MPI_Send(localVector.data(), localSize, MPI_DOUBLE, second, 0, MPI_COMM_WORLD);
+            MPI_Recv(&bufferVector[0], localSize, MPI_DOUBLE, second, 0, MPI_COMM_WORLD, &status);
+
+            for (size_t locIdx = 0, bufferIdx = 0, tmpIdx = 0; tmpIdx < static_cast<size_t>(localSize); ++tmpIdx) {
+                double localValue = localVector[locIdx];
+                double bufferValue = bufferVector[bufferIdx];
+
+                if (localValue < bufferValue) {
+                    tmpVector[tmpIdx] = localValue;
+                    ++locIdx;
+                } else {
+                    tmpVector[tmpIdx] = bufferValue;
+                    ++bufferIdx;
+                }
+            }
+
+            localVector = tmpVector;
+        } else if (rank == static_cast<int>(second)) {
+            MPI_Recv(&bufferVector[0], localSize, MPI_DOUBLE, first, 0, MPI_COMM_WORLD, &status);
+            MPI_Send(localVector.data(), localSize, MPI_DOUBLE, first, 0, MPI_COMM_WORLD);
+
+            int startIndex = localSize - 1;
+            for (int locIdx = startIndex, bufferIdx = startIndex, tmpIdx = startIndex; tmpIdx >= 0; --tmpIdx) {
+                double localValue = localVector[locIdx];
+                double bufferValue = bufferVector[bufferIdx];
+
+                if (localValue > bufferValue) {
+                    tmpVector[tmpIdx] = localValue;
+                    --locIdx;
+                } else {
+                    tmpVector[tmpIdx] = bufferValue;
+                    --bufferIdx;
+                }
+            }
+
+            localVector = tmpVector;
+        }
+    }
+
+    MPI_Gather(localVector.data(), localSize, MPI_DOUBLE, &dst[0], localSize, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    if (rank == 0 && fictiveValues != 0)
+        dst.erase(dst.begin() + srcSize - fictiveValues, dst.end());
+
+    return dst;
+}
+
+std::vector<double> radixSortSequential(const std::vector<double>& src) {
+    const size_t size = src.size();
+    if (size <= 0)
+        throw "[Error] Incorrect array size. The size must be positive";
+
+    std::vector<double> dst(size);
+    std::vector<double> tmp(src);
+
+    for (size_t i = 0; i < 7; ++i) {
+        dst = radixSortPass(tmp, static_cast<uint16_t>(i));
+        std::swap(tmp, dst);
+    }
+
+    return radixSortLastPass(tmp, 7);
+}
+
+std::vector<double> radixSortPass(const std::vector<double>& src, const uint16_t offset) {
+    const size_t size = src.size();
+    std::vector<double> dst(size);
+    unsigned char* bytes = (unsigned char*)src.data();
+    size_t* counters = new size_t[BITS];
+    memset(counters, 0, BITS * sizeof(size_t));
+
+    for (size_t i = 0; i < size; ++i)
+        counters[bytes[8 * i + offset]]++;
+
+    size_t sum = 0;
+    for (size_t i = 0; i < BITS; ++i) {
+        size_t tmp = counters[i];
+        counters[i] = sum;
+        sum += tmp;
+    }
+
+    for (size_t i = 0; i < size; ++i) {
+        size_t idx = 8 * i + offset;
+        dst[counters[bytes[idx]]] = src[i];
+        counters[bytes[idx]]++;
+    }
+
+    delete[] counters;
+
+    return dst;
+}
+
+std::vector<double> radixSortLastPass(const std::vector<double>& src, const uint16_t offset) {
+    const size_t size = src.size();
+    std::vector<double> dst(size);
+    unsigned char* bytes = (unsigned char*)src.data();
+    size_t* counters = new size_t[BITS];
+    memset(counters, 0, BITS * sizeof(size_t));
+
+    for (size_t i = 0; i < size; ++i)
+        counters[bytes[8 * i + offset]]++;
+
+    size_t countOfNegative = 0;
+    for (size_t i = 128; i < BITS; ++i)
+        countOfNegative += counters[i];
+
+    size_t sum = countOfNegative;
+    for (size_t i = 0; i < 128; ++i) {
+        size_t tmp = counters[i];
+        counters[i] = sum;
+        sum += tmp;
+    }
+
+    sum = 0;
+    for (size_t i = BITS - 1; i >= 128; --i) {
+        counters[i] += sum;
+        sum = counters[i];
+    }
+
+    for (size_t i = 0; i < size; ++i) {
+        size_t index = 8 * i + offset;
+
+        if (bytes[index] < 128)
+            dst[counters[bytes[index]]++] = src[i];
+        else
+            dst[--counters[bytes[index]]] = src[i];
+    }
+
+    delete[] counters;
+
+    return dst;
+}
+
+void batcherNetwork(const size_t processCount) {
+    if (processCount <= 1)
+        return;
+
+    std::vector<size_t> processRanks(processCount);
+    for (size_t i = 0; i < processCount; ++i)
+        processRanks[i] = i;
+
+    buildBatcherNetwork(processRanks);
+}
+
+void buildBatcherNetwork(const std::vector<size_t>& processRanks) {
+    size_t size = processRanks.size();
+
+    if (size <= 1)
+        return;
+
+    std::vector<size_t> leftVector(size / 2);
+    std::vector<size_t> rightVector(size / 2 + size % 2);
+
+    std::copy(processRanks.begin(), processRanks.begin() + leftVector.size(), leftVector.begin());
+    std::copy(processRanks.begin() + leftVector.size(), processRanks.end(), rightVector.begin());
+
+    buildBatcherNetwork(leftVector);
+    buildBatcherNetwork(rightVector);
+    buildBatcherComparators(leftVector, rightVector);
+}
+
+void buildBatcherComparators(const std::vector<size_t>& leftVector, const std::vector<size_t>& rightVector) {
+    size_t processCount = leftVector.size() + rightVector.size();
+
+    if (processCount <= 1)
+        return;
+
+    if (processCount == 2) {
+        comparators.push_back(std::pair<size_t, size_t>(leftVector[0], rightVector[0]));
+        return;
+    }
+
+    std::vector<size_t> leftVectorOdd, leftVectorEven;
+    std::vector<size_t> rightVectorOdd, rightVectorEven;
+
+    for (size_t i = 0; i < leftVector.size(); ++i)
+        i % 2 ? leftVectorEven.push_back(leftVector[i]) : leftVectorOdd.push_back(leftVector[i]);
+    for (size_t i = 0; i < rightVector.size(); ++i)
+        i % 2 ? rightVectorEven.push_back(rightVector[i]) : rightVectorOdd.push_back(rightVector[i]);
+
+    buildBatcherComparators(leftVectorOdd, rightVectorOdd);
+    buildBatcherComparators(leftVectorEven, rightVectorEven);
+
+    std::vector<size_t> result(processCount);
+    std::copy(leftVector.begin(), leftVector.end(), result.begin());
+    std::copy(rightVector.begin(), rightVector.end(), result.begin() + leftVector.size());
+
+    for (size_t i = 1; i < processCount - 1; i += 2)
+        comparators.push_back(std::pair<size_t, size_t>(result[i], result[i + 1]));
+}
+\end{lstlisting}
+\begin{lstlisting}
+// main.cpp
+// Copyright 2020 Sidorova Alexandra
+
+#include <gtest-mpi-listener.hpp>
+#include <gtest/gtest.h>
+#include <random>
+#include <ctime>
+#include <algorithm>
+#include <vector>
+#include <iostream>
+#include "./radix_sort.h"
+
+#define EPSILON 0.0001
+
+TEST(RadixDoubleSortWithBatcher, TimeTest) {
+    const size_t size = 20000000;
+
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    double starttime, endtime;
+    std::vector<double> srcSeq;
+    if (rank == 0) {
+        srcSeq = getRandomVector(size);
+
+        starttime = MPI_Wtime();
+        radixSortSequential(srcSeq);
+        endtime = MPI_Wtime();
+
+        std::cout << "Sequential impl: " << endtime - starttime << std::endl;
+    }
+
+    std::vector<double> src;
+    if (rank == 0)
+        src = getRandomVector(size);
+
+    starttime = MPI_Wtime();
+    radixSortParallel(src);
+    endtime = MPI_Wtime();
+    if (rank == 0)
+        std::cout << "Parallel impl: " << endtime - starttime << std::endl;
+}
+
+TEST(RadixDoubleSortWithBatcher, IncorrectSizeTest) {
+    std::vector<double> src;
+
+    ASSERT_ANY_THROW(radixSortSequential(src));
+}
+
+TEST(RadixDoubleSortWithBatcher, SequentialTest) {
+    const size_t size = 10;
+    std::vector<double> src = getRandomVector(size);
+    std::vector<double> dst(size);
+    std::vector<double> ref(src);
+
+    dst = radixSortSequential(src);
+    std::sort(ref.begin(), ref.end());
+
+    for (size_t i = 0; i < size; i++)
+        ASSERT_NEAR(dst[i], ref[i], EPSILON);
+}
+
+TEST(RadixDoubleSortWithBatcher, ParallelMediumSizeTest) {
+    const size_t size = 20;
+    std::vector<double> src;
+    std::vector<double> ref;
+
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank == 0) {
+        src = getRandomVector(size);
+        ref = src;
+    }
+
+    std::vector<double> dst = radixSortParallel(src);
+
+    if (rank == 0) {
+        std::sort(ref.begin(), ref.end());
+
+        for (size_t i = 0; i < size; i++)
+            ASSERT_NEAR(dst[i], ref[i], EPSILON);
+    }
+}
+
+TEST(RadixDoubleSortWithBatcher, ParallelSmallSizeTest) {
+    const size_t size = 5;
+    std::vector<double> src;
+    std::vector<double> ref;
+
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank == 0) {
+        src = getRandomVector(size);
+        ref = src;
+    }
+
+    std::vector<double> dst = radixSortParallel(src);
+
+    if (rank == 0) {
+        std::sort(ref.begin(), ref.end());
+
+        for (size_t i = 0; i < size; i++)
+            ASSERT_NEAR(dst[i], ref[i], EPSILON);
+    }
+}
+
+TEST(RadixDoubleSortWithBatcher, ParallelBigSizeTest) {
+    const size_t size = 111;
+    std::vector<double> src;
+    std::vector<double> ref;
+
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank == 0) {
+        src = getRandomVector(size);
+        ref = src;
+    }
+
+    std::vector<double> dst = radixSortParallel(src);
+
+    if (rank == 0) {
+        std::sort(ref.begin(), ref.end());
+
+        for (size_t i = 0; i < size; i++)
+            ASSERT_NEAR(dst[i], ref[i], EPSILON);
+    }
+}
+
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    MPI_Init(&argc, &argv);
+
+    ::testing::AddGlobalTestEnvironment(new GTestMPIListener::MPIEnvironment);
+    ::testing::TestEventListeners& listeners =
+            ::testing::UnitTest::GetInstance()->listeners();
+
+    listeners.Release(listeners.default_result_printer());
+    listeners.Release(listeners.default_xml_generator());
+
+    listeners.Append(new GTestMPIListener::MPIMinimalistPrinter);
+    return RUN_ALL_TESTS();
+}
+\end{lstlisting}
+
+\end{document}
