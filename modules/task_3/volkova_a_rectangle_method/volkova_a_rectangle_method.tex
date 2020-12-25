@@ -1,0 +1,684 @@
+\documentclass{report}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage[14pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{indentfirst}
+\usepackage{pgfplots}
+
+\geometry{a4paper,top=2cm,bottom=2cm,left=2.5cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+
+\lstset{language=C++,
+		basicstyle=\footnotesize,
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{green}\ttfamily,
+		commentstyle=\color{green}\ttfamily,
+		morecomment=[l][\color{red}]{\#}, 
+		tabsize=2,
+		breaklines=true,
+  		breakatwhitespace=true,
+  		title=\lstname,       
+}
+
+\begin{document}
+\begin{titlepage}
+\begin{center}
+Министерство образования и науки Российской Федерации
+\end{center}
+\begin{center}
+Федеральное государственное автономное образовательное учреждение высшего образования \\
+Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского(ННГУ)
+\end{center}
+\begin{center}
+Институт информационных технологий, математики и механики
+\end{center}
+\begin{center}
+Направление подготовки: «Фундаментальная информатика и информационные технологии»
+\end{center}
+
+\vspace{2em}
+
+\begin{center}
+\textbf{\LargeОтчет по лабораторной работе} 
+\end{center}
+\begin{center}
+\textbf{\Large«Вычисление многомерных интегралов \\
+с использованием многошаговой схемы \\
+(метод прямоугольников)»} \\
+\end{center}
+
+\vspace{4em}
+
+\newbox{\lbox}
+\savebox{\lbox}{\hbox{text}}
+\newlength{\maxl}
+\setlength{\maxl}{\wd\lbox}
+\hfill\parbox{7cm}{
+\textbf{Выполнил(а):} \\ студент(ка) группы 381806-2 \\ Волкова А. Д.\\
+\\
+\textbf{Проверил:}\\ доцент кафедры МОСТ, \\ кандидат технических наук \\ Сысоев А. В.\\
+}
+\vspace{\fill}
+
+\begin{center} Нижний Новгород \\ 2020 \end{center}
+
+\end{titlepage}
+
+\setcounter{page}{2}
+
+% Оглавление
+\tableofcontents
+\newpage
+
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+На практике достаточно большое число задач сводится к вычислению значения
+определенного интеграла некоторой функции, например, для установления площадей или объемов различных фигур и тел, пути, пройденного точкой в условиях неравномерного движения, определения центров тяжести и инерции тел, работы произведенной некоторыми силами и т.д.
+\par Если решение той или иной практической задачи привело к определенному интегралу, то, естественно, возникает вопрос вычисления этого интеграла. 
+\par Но не всегда имеется возможность вычисления интегралов по формуле Ньютона-Лейбница. Не все подынтегральные функции имеют первообразные элементарных функций, поэтому нахождение точного числа становится нереальным. При решении таких задач не всегда необходимо получать на выходе точные ответы. Существует понятие приближенного значения интеграла, которое задается методом числового интегрирования типа метода прямоугольников, трапеций, Симпсона и другие.
+\par Метод прямоугольников является простейшим методом численного интегрирования. Суть этого метода выражается в том, что приближенное значение считается интегральной суммой.
+
+\newpage
+
+\section*{Постановка задачи}
+\addcontentsline{toc}{section}{Постановка задачи}
+В рамках лабораторной работы требуется реализовать вычисление многомерных интегралов с использованием метода прямоугольников. 
+\par Необходимо выполнить работу для вычисления тройных интегралов:
+$$\int\limits_a^b 
+\int\limits_c^d 
+\int\limits_e^f \,f(x,y,z)\,dx\,dy\,dz
+$$
+\par Требуется реализовать последовательную и параллельную версии и провести анализ по времени работы. А также подтвердить корректность, объяснить полученные результаты и сделать выводы. 
+
+\newpage
+
+\section*{Описание алгоритм}
+\addcontentsline{toc}{section}{Описание алгоритм}
+Суть метода прямоугольников заключается в том, что в качестве приближенного значения определенного интеграла берут интегральную сумму.
+\par Алгоритм вычисления многомерных интегралов с использованием многошаговой схемы (метод прямоугольников):
+\par Пусть имеется интеграл:
+$$\int\limits_a^b 
+\int\limits_c^d 
+\int\limits_e^f \,f(x,y,z)\,dx\,dy\,dz
+$$
+\par где 
+$$ a\le x \le b $$
+$$ c \le y \le d $$
+$$ e \le z \le f $$
+\par и f(x,y,z) является непрерывной функцией
+\begin{enumerate}
+\item Разбиваем интервалы интегрирования на равные части: отрезок [a,b] на n равных частей длины hx, отрезок [c,d] на m равных частей длины hy, отрезок [e,f] на k равных частей длины hz. Чем больше n,m и k, тем точнее приближение.
+\par Шаги разбиения определяются следующим образом:
+$$ hx=\frac{b-a}{n} $$
+$$ hy=\frac{d-c}{m} $$
+$$ hz=\frac{f-e}{k} $$
+\item Посчитав шаги разбиения отрезков, вычисляем интеграл по формуле средних прямоугольников:
+$$\int\limits_a^b 
+\int\limits_c^d 
+\int\limits_e^f \,f(x,y,z)\,dx\,dy\,dz=$$
+$$ = hx*hy*hz*
+\sum\limits_{i=0}^{n-1}
+\sum\limits_{j=0}^{m-1}
+\sum\limits_{q=0}^{k-1}
+f(a+i*hx+\frac{hx}{2}, c+j*hy+\frac{hy}{2},e+q*hz+\frac{hz}{2})
+$$
+\end{enumerate}
+\par
+\par 
+\newpage
+
+\section*{Схема распараллеливания}
+\addcontentsline{toc}{section}{Схема распараллеливания}
+Идея распараллеливания алгоритма состоит в параллельном вычислении внутренней суммы в формуле средних прямоугольников по переменной z. То есть разбиваем отрезок [e,f] на число отрезков, равное количеству процессов. 
+\par Отрезок разобьется на равные части, за исключением, быть может, последнего подотрезка. Это связано с тем, делится ли нацело длина отрезка [e,f] на количество процессов. Если да, то все подотрезки будут одинаковой длины, если нет , то в последний процесс отправляем оставшуюся часть [e,f].
+\par Далее каждый процесс запускает локальное вычисление суммы:
+$$
+\sum\limits_{q=0}^{size-1}
+f(x, y,e'+q*hz+\frac{hz}{2})
+$$
+\par где size - длина текущего отрезка, $e \prime$ - его начало.
+\par Каждый процесс отправляет результат. Данные процессов объединяются, в корневом процессе возвращаем сумму всех локальных сумм. 
+\par Так как распараллеливание программы происходит при вычислении внутренней суммы, то распараллеливание будет происходить n*m раз.
+\newpage
+
+\section*{Описание программной реализации}
+\addcontentsline{toc}{section}{Описание программной реализации}
+Алгоритм последовательного вычисления интеграла методом средних прямоугольников вызывается с помощью функции:
+\begin{lstlisting}
+double integralFunction(double (*f)(double, double, double),
+                        double ax, double bx,
+                        double ay, double by,
+                        double az, double bz,
+                        int n, int m, int k);
+\end{lstlisting}
+\par Первым аргументом передается указатель на используемую функцию, которая была выбрана для вычисления интеграла. Следующие шесть аргументов - это границы отрезков [a,b], [c,d] и [e,f] соответственно. Последние три аргумента задают, на сколько частей надо разбивать каждый отрезок. Функция возвращает значение интеграла.
+\par Параллельная схема реализована с использованием MPI. Алгоритм параллельного вычисления интеграла методом средних прямоугольников вызывается с помощью функции:
+\begin{lstlisting}
+double getCalculatedIntegral( double (*f)(double, double, double),
+                              double ax, double bx,
+                              double ay, double by,
+                              double az, double bz,
+                              int n, int m, int k);
+\end{lstlisting}
+\par Входные параметры как и в последовательной реализации. И функция тоже возвращает значение интеграла.
+\par Само распараллеливание программы происходит в следующей функции:
+\begin{lstlisting}
+double calcParallel( double (*f)(double, double, double),
+                     double X, double Y,
+                     double az, double bz,
+                     int k, double hz);
+\end{lstlisting}
+\par В качестве входных параметров: указатель на подынтегральную функцию, значения x и y, границы [e,f], шаг разбиения и количество частей, на которые разбивается отрезок. На выходе получаем внутреннюю сумму из формулы средних прямоугольников при фиксированных значениях x и y.
+\par Чтобы вычислить сумму параллельно, надо разбить ее на несколько сумм. Их количество равно количеству процессов. Количество процессов и ранг текущего процесса определяются с помощью функций MPI\_Comm\_size и MPI\_Comm\_rank соответственно. Тогда размер локальных сумм вычисляется следующим образом:
+\begin{lstlisting}
+int local_size = k / size;
+\end{lstlisting}
+\par Необходимо пересчитать границы для локальных сумм:
+\begin{lstlisting}
+double curr_az = az + rank * local_size * hz;
+double curr_bz = curr_az + local_size * hz;
+\end{lstlisting}
+\par Так как количество частей k не обязательно делится нацело на число процессов, то для последнего пересчитываем размер. Каждый процесс вызывает функцию вычисления интеграла по внутренней переменной z с фиксированными значениями x и y и пересчитанными пределами интегрирования:
+\begin{lstlisting}
+if (rank = = size - 1) {
+    int K = k - local_size * (size - 1);
+    local_integral = oneDimensionalIntegral(f, X, Y, curr_az, bz, K, hz);
+} else {
+    local_integral = oneDimensionalIntegral(f, X, Y, curr_az, curr_bz, local_size, hz);
+}
+\end{lstlisting}
+\par Для организации распределенных вычислений используется функция MPI\_Reduce.Она возвратит одно значение, которое будет содержать сумму всех локальных значений:
+\begin{lstlisting}
+MPI_Reduce(&local_integral, &ans, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+\end{lstlisting}
+\par Вычисление локальных сумм реализовано в функции:
+\begin{lstlisting}
+double oneDimensionalIntegral(double (*f)(double, double, double),
+                              double X, double Y,
+                              double az, double bz,
+                              int k, double hz);
+\end{lstlisting}
+\par  В качестве входных параметров: указатель на подынтегральную функцию, значения x и y, границы $[e\prime ,f\prime ]$, то есть границы того отрезка, который принадлежит определенному процессу, шаг разбиения и количество частей, на которые разбивается текущий отрезок определенного процесса. На выходе получаем локальную сумму при фиксированных значениях x и y. 
+\newpage
+
+\section*{Подтверждение корректности}
+\addcontentsline{toc}{section}{Подтверждение корректности}
+Для подтверждения корректности в программе представлен набор тестов, разработанных с помощью использования Google C++ Testing Framework.
+\par Набор представляет из себя тесты, которые проверяют:
+\begin{itemize}
+\item корректность входных данных (подынтегральную функцию, пределы интегрирования по каждой переменной, количество отрезков для разбиения);
+\item корректность вычислений (сравнивается полученный благодаря параллельной или последовательной реализации значение интеграла со значением, вычисленным с помощью онлайн-калькулятора);
+\item эффективность (определение времени, занимаемого последовательным и параллельным вычислением интеграла, и сравнение полученных данных).
+\end{itemize}
+\par Успешное прохождение всех тестов доказывает корректность работы программы.
+\newpage
+
+\section*{Результаты экспериментов}
+\addcontentsline{toc}{section}{Результаты экспериментов}
+Вычислительные эксперименты для оценки эффективности параллельного вычисления интеграла методом средних прямоугольников проводились на оборудовании со следующей аппаратной конфигурацией:
+
+\begin{itemize}
+\item Процессор: Intel(R) Core(TM) i7-8550U 1.8GHz with Turbo Boost up to 4.0GHz, ядер: 4, логических процессоров: 8;
+\item Оперативная память: 12 ГБ DDR3;
+\item ОС: Microsoft Windows 10;
+\end{itemize}
+
+\par Эксперименты проводились при размерах 10, $10^2$, $10^3$, $10^4$, $10^5$, $10^6$ и $10^7$. Результаты экспериментов при размере $10^7$ представлены в Таблице 1.
+
+\begin{table}[!h]
+\centering
+\begin{tabular}{lllll}
+Кол-во процессов & Последовательно,сек & Параллельно,сек & Ускорение  \\
+1  & 1.515 & 1.519 & 0.997  \\
+2  & 1.515 & 0.758 & 1.999  \\
+3  & 1.516 & 0.543 & 2.792  \\
+4  & 1.512 & 0.433 & 3.492  \\
+5  & 1.513 & 0.415 & 3.646  \\
+6  & 1.514 & 0.369 & 4.103  \\
+7  & 1.516 & 0.318 & 4.767  \\
+8  & 1.513 & 0.287 & 5.272  \\
+9  & 1.515 & 0.314 & 4.825  \\
+10 & 1.515 & 0.338 & 4.482  \\
+11 & 1.514 & 0.339 & 4.466 \\
+12 & 1.515 & 0.350 & 4.329 \\
+13 & 1.513 & 0.346 & 4.373 \\
+14 & 1.515 & 0.333 & 4.549 \\
+15 & 1.515 & 0.349 & 4.341 \\
+16 & 1.516 & 0.341 & 4.446 \\
+17 & 1.516 & 0.325 & 4.665 \\
+18 & 1.516 & 0.334 & 4.539 \\
+19 & 1.517 & 0.361 & 4.202 \\
+20 & 1.517 & 0.320 & 4.741
+\end{tabular}
+\caption{Результаты вычислительных экспериментов}
+\end{table}
+
+\newpage
+
+\par Для наглядности полученных результатов ниже представлены графики зависимости времени работы от количества процессов для обеих реализаций.
+
+\begin{tikzpicture}
+\begin{axis}[
+    title = Результаты экспериментов при размере $10^7$,
+	xlabel = {Количество процессов},
+	ylabel = {Время, сек},
+	width = 350, 
+	height = 350,
+	legend pos = south west, 
+    ymin = 0, 
+    xmin = 0,
+    grid = major,
+]
+\legend{ 
+	Последовательная реализация,
+	Параллельная реализация,
+};
+\addplot coordinates {
+    (1  , 1.515)
+    (2  , 1.515) 
+    (3  , 1.516)
+    (4  , 1.512)
+    (5  , 1.513)
+    (6  , 1.513)
+    (7  , 1.516)
+    (8  , 1.513)
+    (9  , 1.515)
+    (10 , 1.515)
+    (11 , 1.514)
+    (12 , 1.515)
+    (13 , 1.513)
+    (14 , 1.515)
+    (15 , 1.515)
+    (16 , 1.516)
+    (17 , 1.516)
+    (18 , 1.516)
+    (19 , 1.517)
+    (20 , 1.517)
+};
+\addplot coordinates {
+    (1  , 1.519)
+    (2  , 0.758)
+    (3 ,  0.543) 
+    (4  , 0.433)
+    (5  , 0.415)
+    (6  , 0.369)
+    (7  , 0.318)
+    (8  , 0.287)
+    (9  , 0.314)
+    (10 , 0.338)
+    (11 , 0.339)
+    (12 , 0.350)
+    (13 , 0.346)
+    (14 , 0.333)
+    (15 , 0.349)
+    (16 , 0.341)
+    (17 , 0.325)
+    (18 , 0.334)
+    (19 , 0.361)
+    (20 , 0.320)
+};
+\end{axis}
+\end{tikzpicture}
+
+\par По данным, полученным в результате экспериментов, можно сделать вывод о том, что параллельный случай работает намного быстрее, чем последовательный. Можно заметить, что минимальное время работы в параллельной реализации достигается при 8 процессах. Это связано аппаратной конфигурацией оборудования, на котором проводились эксперименты. 
+\par Процессор имеет 4 ядра, следовательно, максимальное ускорение, которое может быть достигнуто - в 4 раза. Из Таблицы 1 видно, что ускорение превосходит это значение. Это связано с аппаратной и алгоритмической составляющими. Алгоритмическая сложность параллельной программы меньше последовательной. И аппаратная составляющая - процессы обращаются к одной памяти.
+\par Таким образом, при данной аппаратной конфигурации наиболее эффективным будет использование 8 процессов.
+
+\newpage
+
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+В результате лабораторной работы были разработаны последовательная и параллельная реализации вычисления тройного интеграла методом средних прямоугольников.
+\par Основной задачей данной лабораторной работы была реализация параллельной версии, которая должна была быть эффективнее последовательной. Эта задача была успешно достигнута, о чем говорят результаты экспериментов, проведенных в ходе работы. Они показывают, что параллельный вариант работает действительно быстрее, чем последовательный. 
+\par Кроме того, были разработаны и доведены до успешного выполнения тесты, созданные для данной программы с использованием Google C++ Testing Framework и необходимые для подтверждения корректности работы программы.
+\newpage
+
+\begin{thebibliography}{1}
+\addcontentsline{toc}{section}{Список литературы}
+\bibitem{Antonov} Антонов А.С. Параллельное программирование с использованием технологии MPI:Учебное пособие.-М.: Изд-во МГУ, 2004.-71 с.
+\bibitem{Grishagin} Гришагин В.А., Свистунов А.Н. Параллельное программирование на основе MPI.Учебное пособие – Нижний Новгород: Изд-во ННГУ им.Н.И. Лобачевского, 2005. - 93 с
+\bibitem{Lvovsky} Львовский С.М. Набор и вёрстка в системе LATEX, 3-е издание, исправленное и дополненное, 2003, 448 с. 
+\bibitem{Verzhbitsky} Вержбицкий, В.М. Основы численных методов / В.М. Вержбицкий. – М.:
+Высшая школа, 2002. – 840 с.
+\bibitem{Piskunov} Пискунов Н. С. Дифференциальное и интегральное исчисления для
+втузов.-13-е изд.-М.: Наука. Гл. ред. физ-мат. лит., 1985. — 432 с.
+\bibitem{Samarsky} Самарский А.А., Гулин А.В. Численные методы. М.: Наука,1989. 432 с.
+\end{thebibliography}
+\newpage
+
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+\begin{lstlisting}
+// rectangle_method_mpi.h
+
+// Copyright 2020 Volkova Anastasia
+#ifndef MODULES_TASK_3_VOLKOVA_A_RECTANGLE_METHOD_RECTANGLE_METHOD_MPI_H_
+#define MODULES_TASK_3_VOLKOVA_A_RECTANGLE_METHOD_RECTANGLE_METHOD_MPI_H_
+
+double function1(double x, double y, double z);
+double function2(double x, double y, double z);
+double function3(double x, double y, double z);
+double function4(double x, double y, double z);
+
+double integralFunction(double (*f)(double, double, double),
+                        double ax, double bx,
+                        double ay, double by,
+                        double az, double bz,
+                        int n, int m, int k);
+double calcParallel(double (*f)(double, double, double),
+                    double X, double Y,
+                    double az, double bz,
+                    int k, double hz);
+double getCalculatedIntegral(double (*f)(double, double, double),
+                             double ax, double bx,
+                             double ay, double by,
+                             double az, double bz,
+                             int n, int m, int k);
+double oneDimensionalIntegral(double (*f)(double, double, double),
+                              double X, double Y,
+                              double az, double bz,
+                              int k, double hz);
+
+#endif  // MODULES_TASK_3_VOLKOVA_A_RECTANGLE_METHOD_RECTANGLE_METHOD_MPI_H_
+\end{lstlisting}
+\begin{lstlisting}
+// rectangle_method_mpi.cpp
+// Copyright 2020 Volkova Anastasia
+#include <mpi.h>
+#include <iostream>
+#include "../../../modules/task_3/volkova_a_rectangle_method/rectangle_method_mpi.h"
+
+double function1(double x, double y, double z) {
+    return x*y*z;
+}
+double function2(double x, double y, double z) {
+    return x * x * x * y + 2 * z * z * y + 10 * x * y * z;
+}
+double function3(double x, double y, double z) {
+    return (5 * x + 2 * y) * z;
+}
+double function4(double x, double y, double z) {
+    return x * x + x * y * z - 10*z * z;
+}
+
+double integralFunction(double (*f)(double, double, double),
+                        double ax, double bx,
+                        double ay, double by,
+                        double az, double bz,
+                        int n, int m, int k) {
+    const double hx = (bx - ax) / static_cast<double>(n);
+    const double hy = (by - ay) / static_cast<double>(m);
+    const double hz = (bz - az) / static_cast<double>(k);
+
+    double ans = 0;
+    double X, Y, Z;
+    for (double i = 0; i < n; ++i) {
+        for (double j = 0; j < m; ++j) {
+            for (double q = 0; q < k;  ++q) {
+                X = static_cast<double>(ax) + i * hx + 0.5 * hx;
+                Y = static_cast<double>(ay) + j * hy + 0.5 * hy;
+                Z = static_cast<double>(az) + q * hz + 0.5 * hz;
+                ans += f(X, Y, Z);
+            }
+        }
+    }
+    ans *= hx * hy * hz;
+    return ans;
+}
+
+double oneDimensionalIntegral(double (*f)(double, double, double),
+                              double X, double Y,
+                              double az, double bz,
+                              int k, double hz) {
+    double tmp = 0, Z;
+    for (double q = 0; q < k; ++q) {
+        Z = static_cast<double>(az) + q * hz + 0.5 * hz;
+        tmp += f(X, Y, Z);
+    }
+    return tmp;
+}
+
+double calcParallel( double (*f)(double, double, double),
+                     double X, double Y,
+                     double az, double bz,
+                     int k, double hz) {
+    int size, rank;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double ans = 0;
+    double local_integral = 0;
+    int local_size = k / size;
+    double curr_az = az + rank * local_size * hz;
+    double curr_bz = curr_az + local_size * hz;
+    if (rank == size - 1) {
+        int K = k - local_size * (size - 1);
+        local_integral = oneDimensionalIntegral(f, X, Y, curr_az, bz, K, hz);
+    } else {
+        local_integral = oneDimensionalIntegral(f, X, Y, curr_az, curr_bz, local_size, hz);
+    }
+    MPI_Reduce(&local_integral, &ans, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    return ans;
+}
+
+double getCalculatedIntegral( double (*f)(double, double, double),
+                              double ax, double bx,
+                              double ay, double by,
+                              double az, double bz,
+                              int n, int m, int k) {
+    const double hx = (bx - ax) / static_cast<double>(n);
+    const double hy = (by - ay) / static_cast<double>(m);
+    const double hz = (bz - az) / static_cast<double>(k);
+    double ans = 0;
+    double X, Y;
+    for (double i = 0; i < n; ++i) {
+        for (double j = 0; j < m; ++j) {
+            X = static_cast<double>(ax) + i * hx + 0.5 * hx;
+            Y = static_cast<double>(ay) + j * hy + 0.5 * hy;
+            ans += calcParallel(f, X, Y, az, bz, k, hz);
+        }
+    }
+    ans *= hx * hy * hz;
+    return ans;
+}
+\end{lstlisting}
+\begin{lstlisting}
+// main.cpp
+// Copyright 2020 Volkova Anastasia
+#include <gtest-mpi-listener.hpp>
+#include <gtest/gtest.h>
+#include <random>
+#include <vector>
+#include "./rectangle_method_mpi.h"
+
+TEST(Integral, Test1_10) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double parallStart = MPI_Wtime();
+    double parall = getCalculatedIntegral(function1, 0, 17, -1, 2, 4, 10, 10, 10, 10);
+    double parallEnd = MPI_Wtime();
+    double value = 9103.5;
+    if (rank == 0) {
+        double integralStart = MPI_Wtime();
+        double integral = integralFunction(function1, 0, 17, -1, 2, 4, 10, 10, 10, 10);
+        double integralEnd = MPI_Wtime();
+        ASSERT_LE(std::abs(parall - value), 1e-3);
+        std::cout << "value:           " << value << std::endl;
+        std::cout << "result:          " << integral << std::endl;
+        std::cout << "result parall :  " << parall << std::endl;
+        std::cout << std::fixed << std::setprecision(20) <<
+            "integral :          " << integralEnd - integralStart <<
+            std::endl;
+        std::cout << std::fixed << std::setprecision(20) <<
+            "parall integral :   " << parallEnd - parallStart <<
+            std::endl;
+    }
+}
+
+TEST(Integral, Test1_10000) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double parallStart = MPI_Wtime();
+    double parall = getCalculatedIntegral(function1, 0, 17, -1, 2, 4, 10, 10, 10, 10000);
+    double parallEnd = MPI_Wtime();
+    double value = 9103.5;
+    if (rank == 0) {
+        double integralStart = MPI_Wtime();
+        double integral = integralFunction(function1, 0, 17, -1, 2, 4, 10, 10, 10, 10000);
+        double integralEnd = MPI_Wtime();
+        ASSERT_LE(std::abs(parall - value), 1e-3);
+        std::cout << "value:           " << value << std::endl;
+        std::cout << "result:          " << integral << std::endl;
+        std::cout << "result parall :  " << parall << std::endl;
+        std::cout << std::fixed << std::setprecision(20) <<
+            "integral :          " << integralEnd - integralStart <<
+            std::endl;
+        std::cout << std::fixed << std::setprecision(20) <<
+            "parall integral :   " << parallEnd - parallStart <<
+            std::endl;
+    }
+}
+
+TEST(Integral, Test2_100) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double parallStart = MPI_Wtime();
+    double parall = getCalculatedIntegral(function1, -1, 1.9, -1.3, 2, 2, 6.5, 10, 10, 100);
+    double parallEnd = MPI_Wtime();
+    double value = 28.826634375;
+    if (rank == 0) {
+        double integralStart = MPI_Wtime();
+        double integral = integralFunction(function1, -1, 1.9, -1.3, 2, 2, 6.5, 10, 10, 100);
+        double integralEnd = MPI_Wtime();
+        ASSERT_LE(std::abs(parall - value), 1e-3);
+        std::cout << "value:           " << value << std::endl;
+        std::cout << "result:          " << integral << std::endl;
+        std::cout << "result parall :  " << parall << std::endl;
+        std::cout << std::fixed << std::setprecision(20) <<
+            "integral :          " << integralEnd - integralStart <<
+            std::endl;
+        std::cout << std::fixed << std::setprecision(20) <<
+            "parall integral :   " << parallEnd - parallStart <<
+            std::endl;
+    }
+}
+
+TEST(Integral, Test3_1000) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double parallStart = MPI_Wtime();
+    double parall = getCalculatedIntegral(function3, 0, 1.8, -1.2, 1.1, -1, 2.9, 10, 10, 1000);
+    double parallEnd = MPI_Wtime();
+    double value = 67.49028;
+    if (rank == 0) {
+        double integralStart = MPI_Wtime();
+        double integral = integralFunction(function3, 0, 1.8, -1.2, 1.1, -1, 2.9, 10, 10, 1000);
+        double integralEnd = MPI_Wtime();
+        ASSERT_LE(std::abs(parall - value), 1e-3);
+        std::cout << "value:           " << value << std::endl;
+        std::cout << "result:          " << integral << std::endl;
+        std::cout << "result parall :  " << parall << std::endl;
+        std::cout << std::fixed << std::setprecision(20) <<
+            "integral :          " << integralEnd - integralStart <<
+            std::endl;
+        std::cout << std::fixed << std::setprecision(20) <<
+            "parall integral :   " << parallEnd - parallStart <<
+            std::endl;
+    }
+}
+
+TEST(Integral, Test4_1000) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double parallStart = MPI_Wtime();
+    double parall = getCalculatedIntegral(function3, 0.5, 1.7, -1, 2, -4, 1.9, 10, 10, 1000);
+    double parallEnd = MPI_Wtime();
+    double value = -144.963;
+    if (rank == 0) {
+        double integralStart = MPI_Wtime();
+        double integral = integralFunction(function3, 0.5, 1.7, -1, 2, -4, 1.9, 10, 10, 1000);
+        double integralEnd = MPI_Wtime();
+        ASSERT_LE(std::abs(parall - value), 1e-3);
+        std::cout << "value:           " << value << std::endl;
+        std::cout << "result:          " << integral << std::endl;
+        std::cout << "result parall :  " << parall << std::endl;
+        std::cout << std::fixed << std::setprecision(20) <<
+            "integral :          " << integralEnd - integralStart <<
+            std::endl;
+        std::cout << std::fixed << std::setprecision(20) <<
+            "parall integral :   " << parallEnd - parallStart <<
+            std::endl;
+    }
+}
+
+TEST(Integral, Test5_100000) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double parallStart = MPI_Wtime();
+    double parall = getCalculatedIntegral(function1, 0.1, 1, -1, 2, 4.2, 6, 10, 10, 100000);
+    double parallEnd = MPI_Wtime();
+    double value = 6.81615;
+    if (rank == 0) {
+        double integralStart = MPI_Wtime();
+        double integral = integralFunction(function1, 0.1, 1, -1, 2, 4.2, 6, 10, 10, 100000);
+        double integralEnd = MPI_Wtime();
+        ASSERT_LE(std::abs(parall - value), 1e-3);
+        std::cout << "value:           " << value << std::endl;
+        std::cout << "result:          " << integral << std::endl;
+        std::cout << "result parall :  " << parall << std::endl;
+        std::cout << std::fixed << std::setprecision(20) <<
+            "integral :          " << integralEnd - integralStart <<
+            std::endl;
+        std::cout << std::fixed << std::setprecision(20) <<
+            "parall integral :   " << parallEnd - parallStart <<
+            std::endl;
+    }
+}
+
+TEST(Integral, Test6_10000000) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double parallStart = MPI_Wtime();
+    double parall = getCalculatedIntegral(function1, 0.1, 1, -1.1, 2, -1, 5, 10, 10, 10000000);
+    double parallEnd = MPI_Wtime();
+    double value = 8.2863;
+    if (rank == 0) {
+        double integralStart = MPI_Wtime();
+        double integral = integralFunction(function1, 0.1, 1, -1.1, 2, -1, 5, 10, 10, 10000000);
+        double integralEnd = MPI_Wtime();
+        ASSERT_LE(std::abs(parall - value), 1e-3);
+        std::cout << "value:           " << value << std::endl;
+        std::cout << "result:          " << integral << std::endl;
+        std::cout << "result parall :  " << parall << std::endl;
+        std::cout << std::fixed << std::setprecision(20) <<
+            "integral :          " << integralEnd - integralStart <<
+            std::endl;
+        std::cout << std::fixed << std::setprecision(20) <<
+            "parall integral :   " << parallEnd - parallStart <<
+            std::endl;
+    }
+}
+
+
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    MPI_Init(&argc, &argv);
+
+    ::testing::AddGlobalTestEnvironment(new GTestMPIListener::MPIEnvironment);
+    ::testing::TestEventListeners& listeners = ::testing::UnitTest::GetInstance()->listeners();
+
+    listeners.Release(listeners.default_result_printer());
+    listeners.Release(listeners.default_xml_generator());
+
+    listeners.Append(new GTestMPIListener::MPIMinimalistPrinter);
+    return RUN_ALL_TESTS();
+}
+
+\end{lstlisting}
+
+\end{document}
