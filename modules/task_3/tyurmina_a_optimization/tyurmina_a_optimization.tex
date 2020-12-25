@@ -1,0 +1,522 @@
+\documentclass[a4paper]{report}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage[14pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+
+\geometry{top=2cm,bottom=3cm,left=2cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+\usepackage{enumitem}
+\setlist{nolistsep,itemsep=0.3cm,parsep=0pt}
+
+\lstset{language=C++,
+		basicstyle=\footnotesize,
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{red}\ttfamily,
+		commentstyle=\color{green}\ttfamily,
+		morecomment=[l][\color{magenta}]{\#}, 
+		tabsize=4,
+		breaklines=true,
+  		breakatwhitespace=true,
+  		title=\lstname,       
+}
+
+\addto\captionsrussian{\renewcommand \contentsname {\LARGE Содержание}}
+
+\begin{document}
+\begin{titlepage}
+\begin{center}
+МИНИСТЕРСТВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РОССИЙСКОЙ ФЕДЕРАЦИИ\\
+Федеральное государственное автономное образовательное учреждение высшего образования \\
+\textbf{"Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского" (ННГУ)}
+\end{center}
+
+\begin{center}
+\textbf{Институт информационных технологий, математики и механики}
+\end{center}
+\vspace{4em}
+
+\begin{center}
+Отчет по лабораторной работе \\
+\vspace{1em}
+\textbf{\Large Многошаговая схема решения двумерных задач глобальной оптимизации. Распараллеливание путем разделения области поиска.} \\
+\end{center}
+
+\vspace{4em}
+
+\newbox{\lbox}
+\savebox{\lbox}{\hbox{text}}
+\newlength{\maxl}
+\setlength{\maxl}{\wd\lbox}
+\hfill\parbox{7cm}{
+\textbf{Выполнил:} \\ 
+студент группы 381806-3 \\
+Тюрмина А.Н. \\
+\\
+\textbf{Проверил:} \\ 
+доцент кафедры МОСТ, \\ 
+кандидат технических наук \\ 
+Сысоев А. В.
+}
+\vspace{\fill}
+
+\begin{center} Нижний Новгород \\ 2020 \end{center}
+\end{titlepage}
+
+\setcounter{page}{2}
+% содержание
+\tableofcontents{}
+\clearpage
+
+\begin{center}
+\section*{Введение}
+\end{center}
+\addcontentsline{toc}{section}{Введение}
+\par Оптимизация -- в математике, информатике и иследовании операций задача нахождения экстремума (минимума или максимума) целевой функции в некоторой области конечномерного векторного пространства, ограниченной набором линейных или нелинейных равенств (неравенств). В анализе данных глобальная оптимизация - это раздел прикладной математики и численного анализа, в большинстве случаев решается задача минимизации, поскольку максимизация эквивалентна поиску обратного функционала для задачи минимизации.
+\par Глобальная оптимизация намного сложнее, чем локальная, поскольку аналитические методы неприменимы, а численные в большинстве случаев приводят к очень сложным решениям.
+\par Целью лабораторной работы является реализация параллельной многошаговой схемы решения двумерных задач глобальной оптимизации с распараллеливанием путем разделения области поиска. 
+\newpage
+
+\begin{center}
+\section*{Постановка задач}
+\end{center}
+\addcontentsline{toc}{section}{Постановка задач}
+В данной лабораторной работе необходимо:
+\begin{enumerate}
+\item Реализовать последовательный решения задачи глобальной оптимизации.
+\item Реализовать параллельный алгоритм метода решения задачи глобальной оптимизации.
+\item Вспомогательные функции для эффективности.
+\item Сделать вывод на основе полученных результатов.
+\end{enumerate}
+\newpage
+
+\begin{center}
+\section*{Описание алгоритма}
+\end{center}
+\addcontentsline{toc}{section}{Описание алгоритма}
+Воспользуемся методом Стронгина. Пусть на отрезке $[a,b]$ определена функция f(y).
+Алгоритм:
+\begin{enumerate}
+\item y(0)=a, y(1)=b, n=1
+\item Вычисляем m, оценку константы Липшица 
+$$M = max\left|\frac{z_s - z_{s-1}}{y_s - y_{s-1}}\right|$$
+Тогда m принимает два значения 
+$$m = 1, M = 0$$
+$$m = r*M, m > 0$$, \\
+где параметр r > 1
+\item Для всех отрезков $y_s - y_{s-1}$, где $1 \leq s \leq n$
+\par вычисляем характеристику:
+\begin{equation}
+    R(s) = m*(y_s - y_{s-1}) + \frac{(z_s - z_{s-1})^2}{m*(y_s - y_{s-1})} -2*(z_s + z_{s-1})
+\end{equation}
+и находим максимум R(s), $$1 \leq s \leq n$$
+\item Находим новую точку разбиения на интервале максимальной характеристики $[y_{s-1}, y_s]$
+$\gamma = s$, $n = n + 1$,
+\begin{equation}
+    y_n^* = \frac{y_\gamma - y_{\gamma - 1}}{2} + \frac{z_\gamma - z_{\gamma - 1}}{2*m}
+\end{equation}
+\item Проверяем критерий останова (останов по точности) $y_\gamma - y_{\gamma - 1} < \epsilon$, если выполняется, то алгоритм завершается. Результат работы алгоритма $min = f(y_\gamma)$, иначе упорядочиваем массив $y(i)$ по возрастанию и переходим на шаг 2.
+\end{enumerate}
+\newpage
+
+\begin{center}
+\section*{Схема распараллеливания}
+\end{center}
+\addcontentsline{toc}{section}{Схема распараллеливания}
+\par В данной лабораторной работе применяется распараллеливание по области поиска. Пусть
+количество процессов равно n. В начале каждый процесс получает определенную область
+размера step = (b – a)/n, принимает блок данных от a1 = a + step * procrank до b1 = a1 + step.
+\par В каждом из интервалов параллельно вычисляется оптимальное значение (в этот процесс входит
+и вычисление характеристики инервала).
+\par Затем 0-ой процесс сравнивает полученные процессами результаты и получает наиболее
+оптимальный.
+\newpage
+
+\begin{center}
+\section*{Описание программной реализации}
+\end{center}
+\addcontentsline{toc}{section}{Описание программной реализации}
+\par Программа состоит из следующих функций:\\
+Функция, которая получает значение функции в точке x:
+\begin{lstlisting}
+double GlobalOpt::get_func_val(double x)
+\end{lstlisting}
+Функция, которая вычисляет параметр для константы Липшица:
+\begin{lstlisting}
+double GlobalOpt::get_M(int i, const std::vector<double>& x)
+\end{lstlisting}
+Функция, которая вычисляет константу Липшица:
+\begin{lstlisting}
+double GlobalOpt::get_m(double r, double M)
+\end{lstlisting}
+Функция, которая присваивает значения:
+\begin{lstlisting}
+GlobalOpt::GlobalOpt(double _a1, double _b1, std::function<double(double*)> _test_func,
+    double _eps)
+\end{lstlisting}
+Функция, которая вычисляет характеристику R(s):
+\begin{lstlisting}
+double GlobalOpt::get_R(int i, double m, const std::vector<double>& x)
+\end{lstlisting}
+Функция, которая получает новое значение x из заданного интервала:
+\begin{lstlisting}
+double GlobalOpt::get_new_x(int t, double m, const std::vector<double>& x)
+\end{lstlisting}
+Функция, которая решает задачу глобальной оптимизации последовательно:
+\begin{lstlisting}
+double GlobalOpt::GlobalSearchSeq(int iterationsTops)
+\end{lstlisting}
+Функция, которая решает задачу глобальной оптимизации параллельно:
+\begin{lstlisting}
+double GlobalOpt::GlobalSearchPar(int iterationsTops)
+\end{lstlisting}
+\newpage
+
+\begin{center}
+\section*{Подтверждение корректности}
+\end{center}
+\addcontentsline{toc}{section}{Подтверждение корректности}
+\par Для подтверждения корректности в программе реализована система тестов, разработанная с помощью использования Google C++ Testing Framework.
+\par Тесты проверяют корректную работу последовательного и параллельного алгоритмов решения задач глобальной оптимизации заданных функции и сравниваются с известными точками минимума этих функций.
+\begin{itemize}
+\item\textit{TEST0\_seq\_min} – проверка работы последовательной реализации;
+\item\textit{TEST1\_par\_min} – проверка работы параллельной реализации;
+\item\textit{TEST2\_parallel\_min\_for\_f} – проверка работы параллельной реализации;
+\item\textit{TEST3\_a\_greater\_then\_b\_par} – проверка работы алгоритма параллельной реализации в случае неправильного интервала;
+\item\textit{TEST4\_a\_greater\_then\_b\_seq} - проверка работы последовательной реализации в случае неправильного интервала;
+\item\textit{TEST5\_timetest} - проверка работы времени;
+\end{itemize}
+\par Успешное прохождение тестов доказывает корректность выполнения алгоритма.
+\newpage
+
+\begin{center}
+\section*{Результаты эксперементов}
+\end{center}
+\addcontentsline{toc}{section}{Результаты эксперементов}
+\par Эксперименты проводились на оборудовании со следующей аппаратной конфигурацией:
+\begin{enumerate}
+\item Процессор: Intel(R) Core(TM) i5-7200U CPU @ 2.50GHz 2701МГц, ядер: 2, логических процессоров: 4
+\item Оперативная память: 8 Gb,
+\item Операционная система: Windows 10;
+\item Среда разработки: Visual Studio 2017.
+\end{enumerate}
+\par Функции, с которыми проводим эксперименты 
+\par $f_1 = \cos(x - 1) * \cos(x * 8 + 1) + 31$, 
+\par $f_2 = x + 19 * x$
+\par Результаты экспериментов представлены в Таблице 1.
+\begin{table}[!h]
+\caption{Результаты экспериментов}
+\centering
+\begin{tabular}{|p{3cm}|p{4cm}|p{4cm}|p{3cm}|}
+\hline
+Количество процессов & Время работы послед. алгоритма,сек & Время работы паралл. алгоритма,сек & Ускорение  \\\hline
+1  & 0.0023 & 0.0022 & 1.04  \\\hline
+2  & 0.0032 & 0.0023 & 1.391  \\\hline
+3  & 0.0033 & 0.0023 & 1.435  \\\hline
+4  & 0.0034 & 0.002 & 1.7  \\\hline
+5  & 0.0039 & 0.0021 & 1.858  \\
+\hline
+\end{tabular}
+\end{table}
+\par На основе полученных данных, можно сделать вывод, что параллельный случай работает быстрее, чем последовательный. Ускорение возрастает с количеством процессов.
+\newpage
+
+\begin{center}
+\section*{Заключение}
+\end{center}
+\addcontentsline{toc}{section}{Заключение}
+\par В результате лабораторной работы была многошаговая схема решения двумерных задач глобальной оптимизации распараллеленная путем разделения области поиска.
+\par Реализация параллельной версии алгоритма была успешно достигнута, о чем говорят результаты экспериментов, проведенных в ходе работы. Они показывают, что параллельный случай работает быстрее, чем последовательный. 
+\par Для подтверждения корректности работы программы были разработаны и доведены до успешного выполнения тесты, созданные с использованием Google C++ Testing Framework. 
+\newpage
+
+\addcontentsline{toc}{section}{Литература}
+\begin{thebibliography}{}
+\bibitem{1} Городецкий С.Ю. Лекции по нелинейному математическому программированию – 2020.
+\bibitem{2} Метод Стронгина и метод Пиявского [Электронный ресурс]:Центр суперкомпьютерных технологий, НГУ им. Лобачевского // URL: \url{http://www.hpcc.unn.ru/?dir=893}.
+\bibitem{3} Оптимизация [Электронный ресурс]: Википедия // URL: \url{https://ru.wikipedia.org/wiki} 
+\bibitem{4}  В. П. Гергель, В. А. Гришин, А. В. Гергель Многомерная многоэкстремальная оптимизация на основе адаптивной многошаговой редукции размерности - 2010
+\end{thebibliography}{}
+\newpage
+
+\begin{center}
+\section*{Приложение}
+\end{center}
+\addcontentsline{toc}{section}{Приложение}
+\begin{lstlisting}
+//  Copyright 2020 Tyurmina Alexandra
+#ifndef MODULES_TASK_3_TYURMINA_A_OPTIMIZATION_MINIMIZE_H_
+#define MODULES_TASK_3_TYURMINA_A_OPTIMIZATION_MINIMIZE_H_
+
+#include <functional>
+#include <vector>
+
+class GlobalOpt {
+    double a1; double b1;
+    double epsilon;
+    std::function<double(double*)> test_func;
+
+ public:
+    // XY search
+    double GlobalSearchSeq(int iterationsTops);
+    double GlobalSearchPar(int iterationsTops);
+
+    GlobalOpt(double a1, double b1, std::function<double(double*)> test_func, double eps);
+
+
+ protected:
+    double get_func_val(double x);
+    double get_m(double r, double M);
+    double get_M(int i, const std::vector<double>& x);
+    double get_R(int i, double m, const std::vector<double>& x);
+    double get_new_x(int t, double m, const std::vector<double>& x);
+};
+
+#endif  // MODULES_TASK_3_TYURMINA_A_OPTIMIZATION_MINIMIZE_H_
+\end{lstlisting}
+\begin{lstlisting}
+  // Copyright 2020 Tyurmina Alexandra
+
+#include <mpi.h>
+#include <utility>
+#include <list>
+#include <algorithm>
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include "../../../modules/task_3/tyurmina_a_optimization/minimize.h"
+
+double GlobalOpt::get_func_val(double x) {
+    return test_func(&x);
+}
+
+double GlobalOpt::get_M(int i, const std::vector<double>& x) {
+    double diff1 = get_func_val(x[i]) - get_func_val(x[i - 1]);
+    double diff2 = x[i] - x[i - 1];
+
+    return std::abs(diff1) / diff2;
+}
+
+double GlobalOpt::get_m(double r, double M) {
+    if (M == 0) {
+        return 1;
+    } else {
+        return  M * r;
+    }
+}
+
+GlobalOpt::GlobalOpt(double _a1, double _b1, std::function<double(double*)> _test_func,
+    double _eps) {
+    a1 = _a1; b1 = _b1;
+    test_func = _test_func;
+    epsilon = _eps;
+}
+
+double GlobalOpt::get_R(int i, double m, const std::vector<double>& x) {
+    double diff = get_func_val(x[i]) - get_func_val(x[i - 1]);
+    double summ = get_func_val(x[i]) + get_func_val(x[i - 1]);
+    double koef = m * (x[i] - x[i - 1]);
+    double val = std::pow(diff, 2) / koef - 2 * summ + koef;
+
+    return val;
+}
+
+double GlobalOpt::get_new_x(int t, double m, const std::vector<double>& x) {
+    double diff = get_func_val(x[t]) - get_func_val(x[t - 1]);
+    double summ = x[t] + x[t - 1];
+    double val = (summ - diff / m) / 2;
+
+    return val;
+}
+
+double GlobalOpt::GlobalSearchSeq(int iterationsTops) {
+    std::vector<double> x_val(iterationsTops + 1, 0);
+    int iterationsNum = 1;
+    int t = 0;
+
+    double r = 2;
+    double R = 0;
+    double temp = 0;
+    double M = get_M(1, x_val);
+    double m = get_m(r, M);
+
+    x_val[0] = a1;
+    x_val[1] = b1;
+    x_val[2] = get_new_x(1, m, x_val);
+
+    ++iterationsNum;
+
+    if (a1 > b1) {
+        throw "b is a right border (must be b > a)";
+    }
+    while (iterationsNum < iterationsTops) {
+        sort(x_val.begin(), x_val.begin() + iterationsNum + 1);
+        M = get_M(1, x_val);
+
+        for (int i = 2; i <= iterationsNum; ++i) {
+            M = std::max(M, get_M(i, x_val));
+        }
+
+        m = get_m(r, M);
+        R = get_R(1, m, x_val);
+        t = 1;
+
+        for (int i = 2; i <= iterationsNum; ++i) {
+            temp = get_R(i, m, x_val);
+            if (R < temp) {
+                R = temp;
+                t = i;
+            }
+        }
+
+        x_val[iterationsNum + 1] = get_new_x(t, m, x_val);
+        ++iterationsNum;
+
+        if (x_val[t] - x_val[t - 1] <= epsilon) {
+            break;
+        }
+    }
+    return x_val[t];
+}
+
+double GlobalOpt::GlobalSearchPar(int iterationsTops) {
+    int prNum, prRank;
+
+    MPI_Comm_size(MPI_COMM_WORLD, &prNum);
+    MPI_Comm_rank(MPI_COMM_WORLD, &prRank);
+
+    std::vector<double> result(prNum);
+
+    if (a1 > b1) {
+        throw "b is a right border (must be b > a)";
+    }
+    if (prNum > 1) {
+        double step = (b1 - a1) / prNum;
+        double a = a1 + step * prRank;
+        double b = a + step;
+
+        if (a != b) {
+            double temp = 0;
+            GlobalOpt opt(a, b, test_func, epsilon);
+            double* local = new double[prNum];
+            *local = opt.GlobalSearchSeq(iterationsTops);
+            MPI_Gather(&local[0], 1, MPI_DOUBLE, &result[0], 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+            double root = get_func_val(result[0]);
+            if (prRank == 0) {
+                for (int i = 1; i < prNum; ++i) {
+                    temp = get_func_val(result[i]);
+                    if (temp < root) {
+                        root = temp;
+                        std::swap(result[i], result[0]);
+                    }
+                }
+            }
+        }
+    } else {
+        return GlobalSearchSeq(iterationsTops);
+    }
+    return result[0];
+}
+
+\end{lstlisting}
+\begin{lstlisting}
+//  Copyright 2020 Tyurmina Alexandra
+#include <gtest-mpi-listener.hpp>
+#include <gtest/gtest.h>
+#include <iostream>
+#include <cmath>
+#include "./minimize.h"
+
+double f_test1(double* x) {
+    return cos((*x) - 1) * cos((*x) * 8 + 1) + 31;
+}
+
+double f_test2(double* x) {
+    return (*x) + 19 * (*x);
+}
+
+TEST(global_GlobalOpt, TEST0_seq_min) {
+    GlobalOpt opt(0, 2.2, f_test1, 1e-5);
+
+    double result = opt.GlobalSearchSeq(800);
+    double correct_result = 1.0529;
+    ASSERT_NEAR(result, correct_result, 1e-3);
+}
+
+TEST(global_GlobalOpt, TEST1_par_min) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    GlobalOpt opt(0.3, 2.2, f_test2, 1e-5);
+
+    double result = opt.GlobalSearchPar(800);
+    double correct_result = 0.3;
+    if (rank == 0) {
+        ASSERT_NEAR(result, correct_result, 1e-4);
+    }
+}
+
+TEST(global_GlobalOpt, TEST2_parallel_min_for_f) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    GlobalOpt opt(0, 1, f_test2, 1e-5);
+
+    double result = opt.GlobalSearchPar(800);
+    double correct_result = 0;
+    if (rank == 0) {
+        ASSERT_NEAR(result, correct_result, 1e-5);
+    }
+}
+
+TEST(global_GlobalOpt, TEST3_a_greater_then_b_par) {
+    GlobalOpt opt(2.2, 0, f_test1, 1e-5);
+    EXPECT_ANY_THROW(opt.GlobalSearchPar(800));
+}
+
+TEST(global_GlobalOpt, TEST4_a_greater_then_b_seq) {
+    GlobalOpt opt(2.2, 0, f_test1, 1e-5);
+    EXPECT_ANY_THROW(opt.GlobalSearchSeq(800));
+}
+
+TEST(global_GlobalOpt, TEST5_timetest) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    GlobalOpt opt(0, 1, f_test1, 1e-5);
+
+    double start1 = MPI_Wtime();
+    double resp = opt.GlobalSearchPar(800);
+    double end1 = MPI_Wtime();
+    if (rank == 0) {
+        std::cout << "Parall: " << end1 - start1 << std::endl;
+        double start2 = MPI_Wtime();
+        double ress = opt.GlobalSearchSeq(800);
+        double end2 = MPI_Wtime();
+        std::cout << "Seq: " << end2 - start2 << std::endl;
+        ASSERT_NEAR(resp, ress, 1e-5);
+    }
+}
+
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    MPI_Init(&argc, &argv);
+
+    ::testing::AddGlobalTestEnvironment(new GTestMPIListener::MPIEnvironment);
+    ::testing::TestEventListeners& listeners =
+        ::testing::UnitTest::GetInstance()->listeners();
+
+    listeners.Release(listeners.default_result_printer());
+    listeners.Release(listeners.default_xml_generator());
+
+    listeners.Append(new GTestMPIListener::MPIMinimalistPrinter);
+    return RUN_ALL_TESTS();
+}
+\end{lstlisting}
+\end{document}
