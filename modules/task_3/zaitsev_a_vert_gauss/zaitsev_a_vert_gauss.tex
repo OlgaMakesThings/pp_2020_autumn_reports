@@ -1,0 +1,801 @@
+\documentclass{report}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage[14pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+
+\geometry{a4paper,top=2cm,bottom=3cm,left=2cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+\setlist{nolistsep, itemsep=0.3cm,parsep=0pt}
+
+\lstset{language=C++,
+		basicstyle=\footnotesize,
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{red}\ttfamily,
+		commentstyle=\color{green}\ttfamily,
+		morecomment=[l][\color{magenta}]{\#}, 
+		tabsize=4,
+		breaklines=true,
+  		breakatwhitespace=true,
+  		title=\lstname,       
+}
+
+\makeatletter
+\renewcommand\@biblabel[1]{#1.\hfil}
+\makeatother
+
+\begin{document}
+
+\begin{titlepage}
+
+\begin{center}
+Министерство науки и высшего образования Российской Федерации
+\end{center}
+
+\begin{center}
+Федеральное государственное автономное образовательное учреждение высшего образования \\
+Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского
+\end{center}
+
+\begin{center}
+Институт информационных технологий, математики и механики
+\end{center}
+
+\vspace{4em}
+
+\begin{center}
+\textbf{\LargeОтчет по лабораторной работе} \\
+\end{center}
+\begin{center}
+\textbf{\Large«Линейная фильтрация изображений (вертикальное разбиение). Ядро Гаусса 3x3.»} \\
+\end{center}
+
+\vspace{4em}
+
+\newbox{\lbox}
+\savebox{\lbox}{\hbox{text}}
+\newlength{\maxl}
+\setlength{\maxl}{\wd\lbox}
+\hfill\parbox{7cm}{
+\hspace*{5cm}\hspace*{-5cm}\textbf{Выполнил:} \\ студент группы 381806-3 \\ Зайцев А. Р.\\
+\\
+\hspace*{5cm}\hspace*{-5cm}\textbf{Проверил:}\\ доцент кафедры МОСТ, \\ кандидат технических наук \\ Сысоев А. В.\\
+}
+\vspace{\fill}
+
+\begin{center} Нижний Новгород \\ 2020 \end{center}
+
+\end{titlepage}
+
+\setcounter{page}{2}
+
+% Содержание
+\tableofcontents
+\newpage
+
+% Введение
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+Довольно часто исходное изображение необходимо изменить, применив к нему определённую фильтрацию. В частности иногда требуется применить фильтр Гаусса, чтобы избавиться от шума на изображении, либо просто размыть изображение. Но чем больше объём данных, тем больше время их обработки. Поэтому для достижения наибольшей производительности необходимо распараллелить процесс фильтрации изображения. Для этого можно разбить исходные данные на подмассивы меньшего размера, произвести обработку над ними параллельно, а в конце слить результаты с каждого подмассива в один массив.
+\par В данной лабораторной работе будет рассмотрена фильтрация изображения "фильтром Гаусса" с ядром Гаусса 3х3. Как было сказано ранее, эта обработка будет распараллелена между процессами, что сильно уменьшит время её выполнения.
+\newpage
+
+% Постановка задачи
+\section*{Постановка задачи}
+\addcontentsline{toc}{section}{Постановка задачи}
+В рамках лабораторной работы необходимо реализовать последовательную и параллельную реализации линейной фильтрации изображений с их вертикальным разбиением "фильтром Гаусса" с ядром Гаусса 3х3. По полученным результатам сделать выводы.
+\par Для реализации параллельной версии необходимо использовать средства MPI. Для проверки корректности работы алгоритмов требуется использовать Google C++ Testing Framework.
+\newpage
+
+% Метод решения
+\section*{Метод решения}
+\addcontentsline{toc}{section}{Метод решения}
+Прежде чем приступить к алгоритму фильтра Гаусса, необходимо создать ядро Гаусса размером 3х3. Для этого нам нужно знать 2 параметра: радиус и сигма. Радиус для данной задачи равен 1, от него будет зависеть, какого размера получится ядро; а вот в качестве сигма можно задать любое число, и чем оно будет больше, тем сильнее будет размытие на выходном изображении. Используя эти 2 параметра, с помощью определённой формулы инициализируем ячейки ядра Гаусса, которые скоро нам понадобятся.
+\par Наконец, алгоритм Фильтра Гаусса заключается в следующем:
+\begin{itemize}
+\item Для каждого пикселя исходного изображения рассматривается область соседних пикселей. Размер этой области зависит от размера ядра Гаусса.
+\item Значение каждого пикселя из этой области умножается на значение из соответствующей ячейки в ядре Гаусса, и полученный результат от произведения прибавляется к заранее созданной переменной value. Так мы обходим все значения из области.
+\item По координатам пикселя исходного изображения, для которого рассматривалась область соседних пикселей, для нового изображения кладётся значение специально созданной переменной value.
+\end{itemize}
+\par В конце концов мы обойдём все значения по пикселям исходного изображения и получим новые значения для тех же пикселей в новом изображении.
+\newpage
+
+% Схема распараллеливания
+\section*{Схема распараллеливания}
+\addcontentsline{toc}{section}{Схема распараллеливания}
+Для распараллеливания алгоритма фильтра Гаусса необходимо разделить массив значений исходного изображения вертикально(то есть по столбцам) на подмассивы, которые будут выделены процессам в количестве, которое зависит от числа всех процессов(чем меньше процессов, тем больше подмассивов придётся обрабатывать каждому процессу, а чем больше процессов, тем меньше подмассивов нужно обработать каждому процессу, но не менее одного).
+\par Каждый процесс работает со своим подмассивом значений и выполняет для всех этих значений алгоритм, описанный ранее в "Методе решения". Проблема возникает в просмотре соседних значений для нашего подмассива значений. Чтобы решить её, каждому процессу также передаётся целое изображение. Такое решение немного замедлит параллельное вычисление, но в целом оно будет работать быстрее.
+\par В конечном итоге, каждый процесс отправляет свои обработанные подмассивы корневому процессу, который в свою очередь собирает все полученные подмассивы в результирующий массив значений для нового изображения.
+\newpage
+
+% Описание программной реализации
+\section*{Описание программной реализации}
+\addcontentsline{toc}{section}{Описание программной реализации}
+Прежде чем производить операции над изображением, необходимо транспонировать исходное изображение, то есть строки сделать столбцами, а столбцы строками. Делаем это для того, чтобы не отходить от поставленной задачи, а именно вертикального разбиения изображения(по столбцам), и при этом оставить код более понятным для восприятия, так как передача данных из одномерного массива в таком случае будет идти непрерывно отдельными частями(если бы не было транспонирования, то для данной задачи приходилось бы передавать данные выборочно, а не непрерывно). Транспонирование выполняется до вызова всех других функций следующей функцией:
+\begin{lstlisting}
+std::vector<double> transposition(const std::vector<double>& matrix, int rows, int cols);
+\end{lstlisting}
+\par В качестве входных параметров передаются:
+\begin{itemize}
+\item ссылка на вектор, в котором находятся значения пикселей исходного изображения.
+\item число строк изображения(затем строки станут столбцами).
+\item число столбцов изображения(затем столбцы станут строками).
+\end{itemize}
+\par Алгоритм последовательной линейной фильтрации изображения фильтром Гаусса вызывается с помощью функции:
+\begin{lstlisting}
+std::vector<double> gauss_filter_sequence(const std::vector<double>& matrix, int rows, int cols,
+  int radius, int sigma);
+\end{lstlisting}
+\par В качестве входных параметров передаются:
+\begin{itemize}
+\item ссылка на вектор, в котором находятся значения пикселей исходного изображения.
+\item число строк изображения.
+\item число столбцов изображения.
+\item радиус, нужный для ядра Гаусса.
+\item сигма, нужная для ядра Гаусса.
+\end{itemize}
+\par Для реализации последовательной и параллельной филтрации Гаусса необходима функция, которая формирует ядро Гаусса.
+\begin{lstlisting}
+std::vector<double> createGaussianKernel(int radius, int sigma);
+\end{lstlisting}
+\par В качестве входных данных передаются радиус и сигма.
+\par Алгоритм параллельной линейной фильтрации изображения фильтром Гаусса вызывается с помощью функции:
+\begin{lstlisting}
+std::vector<double> gauss_filter_parallel(const std::vector<double>& matrix, int rows, int cols,
+  int radius, int sigma);
+\end{lstlisting}
+\par В качестве входных параметров передаются теже параметры, что и в последовательном методе.
+\par Обработка отдельных подмассивов значений для параллельной реализации выполняется в функции:
+\begin{lstlisting}
+std::vector<double> gauss_filter_part_parallel(const std::vector<double>& matrix, int rows, int cols, int count_rows,const std::vector<int>& coord_x, const std::vector<double>& kernel, int radius, int sigma);
+\end{lstlisting}
+\par В качестве входных параметров передаются:
+\begin{itemize}
+\item ссылка на вектор, в котором находятся значения пикселей исходного изображения.
+\item число строк всего изображения.
+\item число столбцов всего изображения.
+\item число строк в подмассиве.
+\item ссылка на вектор, хранящий индексы строк исходного изображения, которые нужно обработать.
+\item ссылка на ядро фильтра(оно у всех процессов будет одинаковым).
+\item радиус.
+\item сигма.
+\end{itemize}
+\newpage
+
+% Подтверждение корректности
+\section*{Подтверждение корректности}
+\addcontentsline{toc}{section}{Подтверждение корректности}
+Для подтверждения корректности в программе представлен набор тестов, разработанных с помощью использования Google C++ Testing Framework.
+\par Набор представляет из себя тесты, которые проверяют правильность выполнения транспонирования, корректность вычислений(то есть сравнение результата последовательного метода и результата параллельного метода), а также эффективность выполнения последовательного и параллельного метода.
+\par Успешное прохождение всех тестов доказывает корректность работы всей программы.
+\newpage
+
+% Результаты экспериментов
+\section*{Результаты экспериментов}
+\addcontentsline{toc}{section}{Результаты экспериментов}
+Вычислительные эксперименты для оценки эффективности параллельной линейной фильтрации изображения фильтром Гаусса производились на оборудовании со следующей аппаратной конфигурацией:
+
+\begin{itemize}
+\item Процессор: AMD Ryzen 5 1600, 3200 MHz, ядер: 6;
+\item Оперативная память: 8192 МБ (DDR4), 1200 MHz;
+\item ОС: Microsoft Windows 10 Home, версия 1909 сборка 18363.1256.
+\end{itemize}
+
+\par Для начала проведём эксперимент фильтрации Гаусса на матрице размером 720х1080, где в каждой ячейке лежит ровно 1 значение(своего рода это полутоновое изображение). 
+\par Результаты экспериментов представлены в Таблице 1.
+
+\begin{table}[!h]
+\caption{Результаты вычислительных экспериментов}
+\centering
+\begin{tabular}{p{3cm} p{4cm} p{4cm} p{4cm}}
+Процессы & Последовательно & Параллельно & Ускорение  \\
+1        & 0.690982          & 0.99889     & 0.69       \\
+2        & 0.703333         & 0.50216     & 1.40       \\
+3        & 0.703378         & 0.343044     & 2.05       \\
+4        & 0.69622         & 0.262449     & 2.65       \\
+6        & 0.694021         & 0.196846     & 3.52       \\
+10        & 0.703036         & 0.175538     & 4.00
+\end{tabular}
+\end{table}
+
+\par Теперь проведём эксперимент фильтрации Гаусса на изображении размером 600х1024, где в каждой ячейке лежит 3 значения: для синего, зелёного и красного цвета(это уже цветное изображение). Для данного теста 3 раза выполняется алгоритм фильтрации Гаусса, по отдельности для синего, зелёного и красного цвета.
+\par Результаты экспериментов представлены в Таблице 2.
+\newpage
+
+\begin{table}[!h]
+\caption{Результаты вычислительных экспериментов}
+\centering
+\begin{tabular}{p{3cm} p{4cm} p{4cm} p{4cm}}
+Процессы & Последовательно & Параллельно & Ускорение  \\
+1        & 14.9302          & 21.383     & 0.70       \\
+2        & 14.9453         & 10.6757     & 1.40       \\
+3        & 14.8492         & 7.20817     & 2.06       \\
+4        & 14.87         & 5.58285     & 2.66       \\
+6        & 14.8834         & 3.96818     & 3.75       \\
+10        & 14.9326         & 2.78191     & 5.37
+\end{tabular}
+\end{table}
+
+\par Исходя из полученных данных, можно сделать вывод, что эффективность также растёт с увеличением процессов. Также можно заметить, что чем больше одинарных массивов нужно обработать, тем лучше с этим справляется параллельная реализация, по сравнению с последовательной реализацией. Таким образом применять параллельную реализацию к цветным изображениям выгоднее, чем к полутоновым.
+\newpage
+
+% Заключение
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+В результате лабораторной работы были разработаны последовательная и параллельная реализации линейной фильтрации изображения фильтром Гаусса с ядром Гаусса 3х3.
+\par Основной задачей данной лабораторной работы была реализация параллельной версии, которая должна была быть эффективнее последовательной. Эта задача была успешно достигнута, о чем говорят результаты экспериментов, проведенных в ходе работы. Они показывают, что параллельный вариант работает действительно быстрее, чем последовательный, причём скорость выполнения можно развить очень сильно, если будет много одновременно выполняющихся процессов.
+\par Кроме того, были разработаны и доведены до успешного выполнения тесты, созданные для данного программного проекта с использованием Google C++ Testing Framework и необходимые для подтверждения корректности работы программы.
+\newpage
+
+% Список литературы
+\begin{thebibliography}{1}
+\addcontentsline{toc}{section}{Список литературы}
+\bibitem{Gergel}
+Гергель В. П. Теория и практика параллельных вычислений. – 2007. 
+\bibitem{Gergel}
+Гергель В. П., Стронгин Р. Г. Основы параллельных вычислений для многопроцессорных вычислительных систем. – 2003.
+\bibitem{Korneev}
+Корнеев В. Д. Параллельное программирование в MPI //Новосибирск: Изд-во СО РАН. – 2000.
+\bibitem{Algorithm}
+Фильтр Гаусса: URL: https://habr.com/ru/post/324070/
+\bibitem{Algorithm}
+URL: https://techcave.ru/posts/66-filtry-v-opencv-average-i-gaussianblur.html
+\end{thebibliography}
+\newpage
+
+% Приложение
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+В данном разделе находится листинг всего кода, написанного в рамках лабораторной работы.
+\begin{lstlisting}
+// vert_gauss.h
+
+// Copyright 2020 Zaitsev Andrey
+#ifndef MODULES_TASK_3_ZAITSEV_A_VERT_GAUSS_VERT_GAUSS_H_
+#define MODULES_TASK_3_ZAITSEV_A_VERT_GAUSS_VERT_GAUSS_H_
+
+#include <vector>
+#include <random>
+#include <ctime>
+
+int clamp(int value, int max, int min);
+std::vector<double> createRandomMatrix(int rows, int cols);
+std::vector<double> transposition(const std::vector<double>& matrix, int rows, int cols);
+std::vector<double> createGaussianKernel(int radius, int sigma);
+std::vector<double> gauss_filter_sequence(const std::vector<double>& matrix, int rows, int cols, int radius, int sigma);
+std::vector<double> gauss_filter_part_parallel(const std::vector<double>& matrix, int rows, int cols, int count_cols,
+  const std::vector<int>& coord_x, const std::vector<double>& kernel, int radius, int sigma);
+std::vector<double> gauss_filter_parallel(const std::vector<double>& matrix, int rows, int cols, int radius, int sigma);
+
+#endif  // MODULES_TASK_3_ZAITSEV_A_VERT_GAUSS_VERT_GAUSS_H_
+
+\end{lstlisting}
+\begin{lstlisting}
+// vert_gauss.cpp
+
+// Copyright 2020 Zaitsev Andrey
+#include <mpi.h>
+#include <vector>
+#include <random>
+#include <ctime>
+#include <cmath>
+#include "../../../modules/task_3/zaitsev_a_vert_gauss/vert_gauss.h"
+
+int clamp(int value, int max, int min) {
+  value = value > max ? max : value;
+  return value < min ? min : value;
+}
+
+std::vector<double> createRandomMatrix(int rows, int cols) {
+  std::mt19937 gen;
+  gen.seed(static_cast<unsigned int>(time(0)));
+  std::vector<double> result(rows * cols);
+  for (int i = 0; i < rows * cols; i++)
+    result[i] = gen() % 256;
+  return result;
+}
+
+std::vector<double> transposition(const std::vector<double>& matrix, int rows, int cols) {
+  std::vector<double> result(rows * cols);
+  for (int i = 0; i < rows; i++) {
+    for (int j = 0; j < cols; j++) {
+      result[i + j * rows] = matrix[i * cols + j];
+    }
+  }
+  return result;
+}
+
+std::vector<double> createGaussianKernel(int radius, int sigma) {
+  int diametr = 2 * radius + 1;
+  // coef of normalization of kernel
+  double norm = 0;
+  // creating gauss kernel
+  std::vector<double> kernel(diametr * diametr);
+
+  // calculating filter kernel
+  for (int i = -radius; i <= radius; i++) {
+    for (int j = -radius; j <= radius; j++) {
+      int idx = (i + radius) * diametr + j + radius;
+      kernel[idx] = exp(-(i * i + j * j) / (sigma * sigma));
+      norm += kernel[idx];
+    }
+  }
+
+  // normalizing the kernel
+  for (int i = 0; i < diametr * diametr; i++)
+    kernel[i] /= norm;
+  return kernel;
+}
+
+std::vector<double> gauss_filter_sequence(const std::vector<double>& matrix, int rows, int cols,
+  int radius, int sigma) {
+  std::vector<double> result(rows * cols);
+  const unsigned int diametr = 2 * radius + 1;
+  std::vector<double> kernel = createGaussianKernel(radius, sigma);
+  for (int x = 0; x < rows; x++) {
+    for (int y = 0; y < cols; y++) {
+      double res = 0;
+      for (int i = -radius; i <= radius; i++) {
+        for (int j = -radius; j <= radius; j++) {
+          int idx = (i + radius) * diametr + j + radius;
+
+          int x_ = clamp(x + j, rows - 1, 0);
+          int y_ = clamp(y + i, cols - 1, 0);
+
+          double value = matrix[x_ * cols + y_];
+
+          res += value * kernel[idx];
+        }
+      }
+      res = clamp(res, 255, 0);
+      result[x * cols + y] = res;
+    }
+  }
+  return result;
+}
+
+std::vector<double> gauss_filter_part_parallel(const std::vector<double>& matrix, int rows, int cols, int count_rows,
+  const std::vector<int>& coord_x, const std::vector<double>& kernel, int radius, int sigma) {
+  std::vector<double> result(count_rows * cols);
+  const unsigned int diametr = 2 * radius + 1;
+  for (int x = 0; x < count_rows; x++) {
+    for (int y = 0; y < cols; y++) {
+      double res = 0;
+      for (int i = -radius; i <= radius; i++) {
+        for (int j = -radius; j <= radius; j++) {
+          int idx = (i + radius) * diametr + j + radius;
+
+          int x_ = clamp(coord_x[x] + j, rows - 1, 0);
+          int y_ = clamp(y + i, cols - 1, 0);
+
+          double value = matrix[x_ * cols + y_];
+
+          res += value * kernel[idx];
+        }
+      }
+      res = clamp(res, 255, 0);
+      result[x * cols + y] = res;
+    }
+  }
+  return result;
+}
+
+std::vector<double> gauss_filter_parallel(const std::vector<double>& matrix, int rows, int cols,
+  int radius, int sigma) {
+  int process_size, process_rank;
+  MPI_Comm_size(MPI_COMM_WORLD, &process_size);
+  MPI_Comm_rank(MPI_COMM_WORLD, &process_rank);
+
+  int stripes = rows / process_size;
+  int part_elem_number = stripes * cols;
+  std::vector<double> matrix_local(part_elem_number);
+
+  MPI_Scatter(matrix.data(), part_elem_number, MPI_DOUBLE, matrix_local.data(),
+    part_elem_number, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+  std::vector<int> coord_x;
+  for (int i = 0; i < stripes; i++)
+    coord_x.push_back(stripes * process_rank + i);
+
+  std::vector<double> kernel = createGaussianKernel(radius, sigma);
+
+  std::vector<double> local_result = gauss_filter_part_parallel(matrix, rows, cols,
+    stripes, coord_x, kernel, radius, sigma);
+  std::vector<double> global_result(rows * cols);
+
+  MPI_Gather(local_result.data(), part_elem_number, MPI_DOUBLE, global_result.data(),
+    part_elem_number, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+  if (process_rank == 0) {
+    int remain = rows % process_size;
+    if (remain != 0) {
+      std::vector<int> tmp;
+      for (int i = stripes * process_size; i < rows; i++)
+        tmp.push_back(i);
+      local_result = gauss_filter_part_parallel(matrix, rows, cols, remain, tmp, kernel, radius, sigma);
+
+      for (int i = 0; i < static_cast<int>(local_result.size()); i++)
+        global_result[stripes * process_size * cols + i] = local_result[i];
+    }
+  }
+
+  return global_result;
+}
+
+\end{lstlisting}
+\begin{lstlisting}
+// main.cpp
+// for tests with 1 one-dimensional array
+
+// Copyright 2020 Zaitsev Andrey
+#include <mpi.h>
+#include <gtest-mpi-listener.hpp>
+#include <gtest/gtest.h>
+#include <vector>
+#include <iostream>
+#include "./vert_gauss.h"
+
+TEST(Verify_transposition, 2x4) {
+  int process_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &process_rank);
+
+  if (process_rank == 0) {
+    int rows = 2;
+    int cols = 4;
+    std::vector<double> matrix(rows * cols);
+    matrix[0] = 12;
+    matrix[1] = 250;
+    matrix[2] = 196;
+    matrix[3] = 17;
+    matrix[4] = 59;
+    matrix[5] = 83;
+    matrix[6] = 115;
+    matrix[7] = 205;
+
+    std::vector<double> answer(rows * cols);
+    answer[0] = 12;
+    answer[1] = 59;
+    answer[2] = 250;
+    answer[3] = 83;
+    answer[4] = 196;
+    answer[5] = 115;
+    answer[6] = 17;
+    answer[7] = 205;
+
+    matrix = transposition(matrix, rows, cols);
+    int tmp = rows;
+    rows = cols;
+    cols = tmp;
+
+    ASSERT_EQ(matrix, answer);
+  }
+}
+
+TEST(Parallel_gauss_filter_random_matrix, 720x1080) {
+  int process_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &process_rank);
+  int rows = 720;
+  int cols = 1080;
+  std::vector<double> matrix = createRandomMatrix(rows, cols);
+
+  matrix = transposition(matrix, rows, cols);
+  int tmp = rows;
+  rows = cols;
+  cols = tmp;
+
+  double start1 = MPI_Wtime();
+  std::vector<double> parallel_result = gauss_filter_parallel(matrix, rows, cols, 1, 5);
+  double finish1 = MPI_Wtime();
+  if (process_rank == 0) {
+	  double start2 = MPI_Wtime();
+    std::vector<double> real_result = gauss_filter_sequence(matrix, rows, cols, 1, 5);
+	double finish2 = MPI_Wtime();
+    ASSERT_EQ(parallel_result, real_result);
+    std::cout << "Parallel: " << finish1 - start1 << std::endl;
+    std::cout << "Sequence: " << finish2 - start2 << std::endl;
+  }
+}
+
+TEST(Parallel_gauss_filter, 3x3) {
+  int process_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &process_rank);
+  int rows = 3;
+  int cols = 3;
+  std::vector<double> matrix(rows * cols);
+
+  matrix[0] = 148;
+  matrix[1] = 74;
+  matrix[2] = 88;
+  matrix[3] = 133;
+  matrix[4] = 154;
+  matrix[5] = 19;
+  matrix[6] = 23;
+  matrix[7] = 40;
+  matrix[8] = 92;
+
+  matrix = transposition(matrix, rows, cols);
+  int tmp = rows;
+  rows = cols;
+  cols = tmp;
+
+  double start1 = MPI_Wtime();
+  std::vector<double> parallel_result = gauss_filter_parallel(matrix, rows, cols, 1, 5);
+  double finish1 = MPI_Wtime();
+  if (process_rank == 0) {
+    double start2 = MPI_Wtime();
+    std::vector<double> real_result = gauss_filter_sequence(matrix, rows, cols, 1, 5);
+    double finish2 = MPI_Wtime();
+    ASSERT_EQ(parallel_result, real_result);
+    std::cout << "Parallel: " << finish1 - start1 << std::endl;
+    std::cout << "Sequence: " << finish2 - start2 << std::endl;
+  }
+}
+
+TEST(Parallel_gauss_filter, 3x4) {
+  int process_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &process_rank);
+  int rows = 3;
+  int cols = 4;
+  std::vector<double> matrix(rows * cols);
+
+  matrix[0] = 120;
+  matrix[1] = 43;
+  matrix[2] = 84;
+  matrix[3] = 18;
+  matrix[4] = 53;
+  matrix[5] = 99;
+  matrix[6] = 207;
+  matrix[7] = 0;
+  matrix[8] = 254;
+  matrix[9] = 98;
+  matrix[10] = 102;
+  matrix[11] = 44;
+
+  matrix = transposition(matrix, rows, cols);
+  int tmp = rows;
+  rows = cols;
+  cols = tmp;
+
+  double start1 = MPI_Wtime();
+  std::vector<double> parallel_result = gauss_filter_parallel(matrix, rows, cols, 1, 5);
+  double finish1 = MPI_Wtime();
+  if (process_rank == 0) {
+    double start2 = MPI_Wtime();
+    std::vector<double> real_result = gauss_filter_sequence(matrix, rows, cols, 1, 5);
+    double finish2 = MPI_Wtime();
+    ASSERT_EQ(parallel_result, real_result);
+    std::cout << "Parallel: " << finish1 - start1 << std::endl;
+    std::cout << "Sequence: " << finish2 - start2 << std::endl;
+  }
+}
+
+TEST(Parallel_gauss_filter, 5x3) {
+  int process_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &process_rank);
+  int rows = 5;
+  int cols = 3;
+  std::vector<double> matrix(rows * cols);
+
+  matrix[0] = 125;
+  matrix[1] = 25;
+  matrix[2] = 36;
+  matrix[3] = 187;
+  matrix[4] = 202;
+  matrix[5] = 163;
+  matrix[6] = 233;
+  matrix[7] = 44;
+  matrix[8] = 5;
+  matrix[9] = 150;
+  matrix[10] = 100;
+  matrix[11] = 208;
+  matrix[12] = 75;
+  matrix[13] = 10;
+  matrix[14] = 28;
+
+  matrix = transposition(matrix, rows, cols);
+  int tmp = rows;
+  rows = cols;
+  cols = tmp;
+
+  double start1 = MPI_Wtime();
+  std::vector<double> parallel_result = gauss_filter_parallel(matrix, rows, cols, 1, 5);
+  double finish1 = MPI_Wtime();
+  if (process_rank == 0) {
+    double start2 = MPI_Wtime();
+    std::vector<double> real_result = gauss_filter_sequence(matrix, rows, cols, 1, 5);
+    double finish2 = MPI_Wtime();
+    ASSERT_EQ(parallel_result, real_result);
+    std::cout << "Parallel: " << finish1 - start1 << std::endl;
+    std::cout << "Sequence: " << finish2 - start2 << std::endl;
+  }
+}
+
+TEST(Parallel_gauss_filter, 7x2) {
+  int process_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &process_rank);
+  int rows = 7;
+  int cols = 2;
+  std::vector<double> matrix(rows * cols);
+
+  matrix[0] = 40;
+  matrix[1] = 55;
+  matrix[2] = 38;
+  matrix[3] = 121;
+  matrix[4] = 74;
+  matrix[5] = 43;
+  matrix[6] = 65;
+  matrix[7] = 49;
+  matrix[8] = 3;
+  matrix[9] = 195;
+  matrix[10] = 10;
+  matrix[11] = 208;
+  matrix[12] = 15;
+  matrix[13] = 48;
+
+  matrix = transposition(matrix, rows, cols);
+  int tmp = rows;
+  rows = cols;
+  cols = tmp;
+
+  double start1 = MPI_Wtime();
+  std::vector<double> parallel_result = gauss_filter_parallel(matrix, rows, cols, 1, 5);
+  double finish1 = MPI_Wtime();
+  if (process_rank == 0) {
+    double start2 = MPI_Wtime();
+    std::vector<double> real_result = gauss_filter_sequence(matrix, rows, cols, 1, 5);
+    double finish2 = MPI_Wtime();
+    ASSERT_EQ(parallel_result, real_result);
+    std::cout << "Parallel: " << finish1 - start1 << std::endl;
+    std::cout << "Sequence: " << finish2 - start2 << std::endl;
+  }
+}
+
+TEST(Parallel_gauss_filter, 5x1) {
+  int process_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &process_rank);
+  int rows = 5;
+  int cols = 1;
+  std::vector<double> matrix(rows * cols);
+
+  matrix[0] = 16;
+  matrix[1] = 38;
+  matrix[2] = 253;
+  matrix[3] = 88;
+  matrix[4] = 144;
+
+  matrix = transposition(matrix, rows, cols);
+  int tmp = rows;
+  rows = cols;
+  cols = tmp;
+
+  double start1 = MPI_Wtime();
+  std::vector<double> parallel_result = gauss_filter_parallel(matrix, rows, cols, 1, 5);
+  double finish1 = MPI_Wtime();
+  if (process_rank == 0) {
+    double start2 = MPI_Wtime();
+    std::vector<double> real_result = gauss_filter_sequence(matrix, rows, cols, 1, 5);
+    double finish2 = MPI_Wtime();
+    ASSERT_EQ(parallel_result, real_result);
+    std::cout << "Parallel: " << finish1 - start1 << std::endl;
+    std::cout << "Sequence: " << finish2 - start2 << std::endl;
+  }
+}
+
+int main(int argc, char *argv[]) {
+  ::testing::InitGoogleTest(&argc, argv);
+  MPI_Init(&argc, &argv);
+  ::testing::AddGlobalTestEnvironment(new GTestMPIListener::MPIEnvironment);
+  ::testing::TestEventListeners &listeners = ::testing::UnitTest::GetInstance()->listeners();
+
+  listeners.Release(listeners.default_result_printer());
+  listeners.Release(listeners.default_xml_generator());
+
+  listeners.Append(new GTestMPIListener::MPIMinimalistPrinter);
+  return RUN_ALL_TESTS();
+}
+
+\end{lstlisting}
+\begin{lstlisting}
+// main.cpp
+// for tests on real images(where 3 one-dimensional arrays)
+
+// Copyright 2020 Zaitsev Andrey
+#include <mpi.h>
+#include <opencv2/opencv.hpp>
+#include <vector>
+#include <iostream>
+#include <ctime>
+#include "vert_gauss.h"
+
+using namespace cv;
+
+int main(int argc, char *argv[]) {
+  MPI_Init(&argc, &argv);
+
+  int process_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &process_rank);
+
+  Mat noise_photo = imread("Source_photo.jpg");
+  std::vector<double> matrix_b(noise_photo.rows * noise_photo.cols);
+  std::vector<double> matrix_g(noise_photo.rows * noise_photo.cols);
+  std::vector<double> matrix_r(noise_photo.rows * noise_photo.cols);
+  for (int x = 0; x < noise_photo.rows; x++) {
+    for (int y = 0; y < noise_photo.cols; y++) {
+      Vec3b color = noise_photo.at<Vec3b>(x, y);
+      matrix_b[x * noise_photo.cols + y] = color[0];
+      matrix_g[x * noise_photo.cols + y] = color[1];
+      matrix_r[x * noise_photo.cols + y] = color[2];
+    }
+  }
+  int rows = noise_photo.rows;
+  int cols = noise_photo.cols;
+  matrix_b = transposition(matrix_b, rows, cols);
+  matrix_g = transposition(matrix_g, rows, cols);
+  matrix_r = transposition(matrix_r, rows, cols);
+  int tmp = rows;
+  rows = cols;
+  cols = tmp;
+
+  double start1 = MPI_Wtime();
+  std::vector<double> parallel_blue = gauss_filter_parallel(matrix_b, rows, cols, 1, 7);
+  std::vector<double> parallel_green = gauss_filter_parallel(matrix_g, rows, cols, 1, 7);
+  std::vector<double> parallel_red = gauss_filter_parallel(matrix_r, rows, cols, 1, 7);
+  double finish1 = MPI_Wtime();
+  if (process_rank == 0) {
+    double start2 = MPI_Wtime();
+    std::vector<double> sequence_blue = gauss_filter_sequence(matrix_b, rows, cols, 1, 7);
+    std::vector<double> sequence_green = gauss_filter_sequence(matrix_g, rows, cols, 1, 7);
+    std::vector<double> sequence_red = gauss_filter_sequence(matrix_r, rows, cols, 1, 7);
+    double finish2 = MPI_Wtime();
+
+    parallel_blue = transposition(parallel_blue, rows, cols);
+    parallel_green = transposition(parallel_green, rows, cols);
+    parallel_red = transposition(parallel_red, rows, cols);
+    sequence_blue = transposition(sequence_blue, rows, cols);
+    sequence_green = transposition(sequence_green, rows, cols);
+    sequence_red = transposition(sequence_red, rows, cols);
+    int tmp = rows;
+    rows = cols;
+    cols = tmp;
+
+    Mat photo_after_gauss_filter_parallel(noise_photo.size(), noise_photo.type());
+    for (int x = 0; x < noise_photo.rows; x++) {
+      for (int y = 0; y < noise_photo.cols; y++) {
+        photo_after_gauss_filter_parallel.at<Vec3b>(x, y)[0] = parallel_blue[x * noise_photo.cols + y];
+        photo_after_gauss_filter_parallel.at<Vec3b>(x, y)[1] = parallel_green[x * noise_photo.cols + y];
+        photo_after_gauss_filter_parallel.at<Vec3b>(x, y)[2] = parallel_red[x * noise_photo.cols + y];
+      }
+    }
+
+    Mat photo_after_gauss_filter_sequence(noise_photo.size(), noise_photo.type());
+    for (int x = 0; x < noise_photo.rows; x++) {
+      for (int y = 0; y < noise_photo.cols; y++) {
+        photo_after_gauss_filter_sequence.at<Vec3b>(x, y)[0] = sequence_blue[x * noise_photo.cols + y];
+        photo_after_gauss_filter_sequence.at<Vec3b>(x, y)[1] = sequence_green[x * noise_photo.cols + y];
+        photo_after_gauss_filter_sequence.at<Vec3b>(x, y)[2] = sequence_red[x * noise_photo.cols + y];
+      }
+    }
+
+    imwrite("Photo_after_gauss_filter_parallel.jpg", photo_after_gauss_filter_parallel);
+    imwrite("Photo_after_gauss_filter_sequence.jpg", photo_after_gauss_filter_sequence);
+
+    std::cout << "Parallel time: " << finish1 - start1 << std::endl;
+    std::cout << "Sequencing time: " << finish2 - start2 << std::endl;
+
+    system("pause");
+  }
+  MPI_Finalize();
+}
+
+\end{lstlisting}
+
+\end{document}
