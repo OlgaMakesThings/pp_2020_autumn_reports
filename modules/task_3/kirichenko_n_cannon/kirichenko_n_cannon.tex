@@ -1,0 +1,566 @@
+\documentclass{report}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage[14pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+
+\geometry{a4paper,top=2cm,bottom=3cm,left=2cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+\setlist{nolistsep, itemsep=0.3cm,parsep=0pt}
+
+\lstset{language=C++,
+		basicstyle=\footnotesize,
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{red}\ttfamily,
+		commentstyle=\color{green}\ttfamily,
+		morecomment=[l][\color{magenta}]{\#}, 
+		tabsize=4,
+		breaklines=true,
+  		breakatwhitespace=true,
+  		title=\lstname,       
+}
+
+\makeatletter
+\renewcommand\@biblabel[1]{#1.\hfil}
+\makeatother
+
+\begin{document}
+
+\begin{titlepage}
+
+\begin{center}
+Министерство науки и высшего образования Российской Федерации
+\end{center}
+
+\begin{center}
+Федеральное государственное автономное образовательное учреждение высшего образования \\
+Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского
+\end{center}
+
+\begin{center}
+Институт информационных технологий, математики и механики
+\end{center}
+
+\vspace{4em}
+
+\begin{center}
+\textbf{\LargeОтчет по лабораторной работе} \\
+\end{center}
+\begin{center}
+\textbf{\Large «Умножение плотных матриц. Элементы типа double. Блочная схема, алгоритм Кэннона.»}
+\vspace{4em}
+\end{center}
+\newbox{\lbox}
+\savebox{\lbox}{\hbox{text}}
+\newlength{\maxl}
+\setlength{\maxl}{\wd\lbox}
+\hfill\parbox{7cm}{
+\hspace*{5cm}\hspace*{-5cm}\textbf{Выполнил:} \\ студент группы 381806-3 \\ Кириченко Н. А.\\
+\\
+\hspace*{5cm}\hspace*{-5cm}\textbf{Проверил:}\\ доцент кафедры МОСТ, \\ кандидат технических наук \\ Сысоев А. В.\\
+}
+\vspace{\fill}
+
+\begin{center} Нижний Новгород \\ 2020 \end{center}
+
+\end{titlepage}
+
+\setcounter{page}{2}
+
+% Содержание
+\tableofcontents
+\newpage
+
+% Введение
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+В современном мире многие вычисления уже не производятся вручную – для этого существует специальная вычислительная техника, ведь проводимые эксперименты становятся сложнее: объём выборки и трудоёмкость алгоритмов уже не позволяют производить расчёты на бумаге – такой объём работы может оказаться просто не под силу даже группе людей, к тому же в таком случае нельзя гарантировать правильность подсчётов наверняка, так как имеет место быть человеческих фактор. Для больших объёмов вычислений уже давно используют специальную технику и имеющиеся алгоритмы, однако даже при использовании производящих подсчёты
+устройств может пройти достаточно много времени до получения результата. А если это не научный эксперимент, результаты которого в дальнейшем станут почвой для размышлений больших умов, а программа, работающая в реальном времени, то вопрос скорости получения ответа встаёт более остро. Здесь нам на помощь приходит понятие оптимизации.
+\par Оптимизация — процесс максимизации выгодных характеристик, соотношений (например, оптимизация производственных процессов и производства), и минимизации расходов.
+\par В нашем случае речь идёт о минимизации времени вычислений путём распараллеливания программы на некоторое количество процессов, так как время в контексте поставленной задачи – самый ценный ресурс.
+\par Реализация блочного алгоритма Кэннона для умножения плотных матриц основывается на
+распараллеливании программы, что позволяет сократить время работы алгоритма, в отличие от
+стандартного алгоритма умножения плотных матриц.
+\par В данной лабораторной работе будет рассмотрено умножение плотных матриц по алгоритму Кэннона.
+\newpage
+
+% Постановка задачи
+\section*{Постановка задачи}
+\addcontentsline{toc}{section}{Постановка задачи}
+Одной из основных операций над матрицами является их перемножение. Эта операция используется практически везде: от компьютерной графики до расчета поверхностей самолетов.
+\par Цель данной работы - реализация параллельного и последовательного алгоритмов, вычисляющих произведение квадратных матриц nxn. В результате работы программы, мы должны получить еще одну матрицу порядка nxn, являющуюся произведение двух исходных, а так же время работы каждого алгоритма.
+\par Требуется реализовать последовательный и параллельный (Кэннона) алгоритмы. Реализацию параллельного алгоритма провести средствами MPI. Кроме того, необходимо провести сравнения времени работы последовательного и параллельного алгоритмов.
+\par Для реализации параллельной версии необходимо использовать средства MPI. Для проверки корректности работы алгоритмов требуется использовать Google C++ Testing Framework.
+\newpage
+
+% Описание алгоритма и метод решения
+\section*{Описание алгоритма и метод решения}
+\addcontentsline{toc}{section}{Описание алгоритма и метод решения}
+Суть алгоритма Кэннона заключается в разбиении матриц А и В на блоки одинакового размера. В качестве базовой подзадачи выберем вычисления, связанные с определением одного из блоков результирующей матрицы C. Для вычисления элементов этого блока подзадача должна иметь доступ к элементам горизонтальной полосы матрицы А и элементам вертикальной полосы матрицы В.
+\par Начальное расположение блоков в алгоритме Кэннона подбирается таким образом, чтобы блоки в подзадачах могли бы быть перемножены без каких-либо дополнительных передач данных. При этом подобное распределение блоков может быть организовано таким образом, что перемещение блоков между подзадачами в ходе вычислений может осуществляться с использованием более простых коммуникационных операций.
+\par Этап инициализации алгоритма Кэннона  включает выполнение следующих
+операций передач данных:
+\begin{itemize}
+\item в каждую подзадачу (i,j) передаются блоки Aij, Bij;
+\item для каждой строки i решетки подзадач блоки матрицы A сдвигаются на (i-1) позиций влево;
+\item для каждого столбца j решетки подзадач блоки матрицы B сдвигаются на (j-1) позиций
+вверх.
+\end{itemize}
+\par В результате такого начального распределения в каждой базовой подзадаче будут
+располагаться блоки, которые могут быть перемножены без дополнительных операций передачи
+данных. Кроме того, получение всех последующих блоков для подзадач может быть обеспечено
+при помощи простых коммуникационных действий — после выполнения операции блочного
+умножения каждый блок матрицы A должен быть передан предшествующей подзадаче влево по
+строкам решетки подзадач, а каждый блок матрицы В – предшествующей подзадаче вверх по
+столбцам решетки. Как можно показать, последовательность таких циклических сдвигов и
+умножение получаемых блоков исходных матриц A и B приведет к получению в базовых
+подзадачах соответствующих блоков результирующей матрицы C.
+\newpage
+
+% Схема распараллеливания
+\section*{Схема распараллеливания}
+\addcontentsline{toc}{section}{Схема распараллеливания}
+В первую очередь создается некоторое число p исполняющих процессов. Это число должно быть полным квадратом. Процессы организуются в виртуальную декартову топологию. Исходные матрицы должны иметь размерность, кратную $\sqrt{p}$.  Матрицы разбиваются на равное количество квадратных блоков. Блоки исходных матриц распределяются по исполняющим процессам. Затем для каждой строки i декартовой решетки блоки матрицы A сдвигаются на (i-1) позиций влево, для каждого столбца j декартовой решетки блоки матрицы B сдвигаются на (j-1) позиций вверх. 
+\par Далее проводится $\sqrt{p}$ итераций, во время которых сначала происходит перемножение
+блоков по методу трех вложенных циклов, и произведение складывается с текущим значением результирующего блока. Затем выполняется циклический сдвиг блоков матрицы А вдоль строк решетки и циклический сдвиг блоков матрицы В вверх по столбцам виртуальной решетки. После выполнения всех итераций результирующая матрица собирается из полученных на каждом процессе результирующих блоков.
+\newpage
+
+% Описание программной реализации
+\section*{Описание программной реализации}
+\addcontentsline{toc}{section}{Описание программной реализации}
+Для решения поставленной задачи используется три основные функции:
+\begin{itemize}
+\item std::vector<double> GetRandomMatrix(const sizet size)– генерирование случайной матрицы,размером size;
+\item std::vector<double> MatrixMultiplication(const std::vector<double> a, const std::vector<double> b, const sizet size)– последовательное умножение матриц;;
+\item std::vector<double> Cannon(const std::vector<double> a, const std::vector<double> b, const sizet size);
+\end{itemize}
+
+
+\newpage
+
+% Подтверждение корректности
+\section*{Подтверждение корректности}
+\addcontentsline{toc}{section}{Подтверждение корректности}
+Для подтверждения корректности в программе представлен набор тестов, разработанных с помощью использования Google C++ Testing Framework.
+\par Набор представляет из себя тесты, которые проверяют правильность выполнения транспонирования, корректность вычислений(то есть сравнение результата последовательного метода и результата параллельного метода), а также эффективность выполнения последовательного и параллельного метода.
+\par Успешное прохождение всех тестов доказывает корректность работы всей программы.
+\newpage
+
+% Результаты экспериментов
+\section*{Результаты экспериментов}
+\addcontentsline{toc}{section}{Результаты экспериментов}
+Вычислительные эксперименты для оценки эффективности алгоритма Кэннона производились на оборудовании со следующей аппаратной конфигурацией:
+
+\begin{itemize}
+\item Процессор: Intel(R) Core(TM) i7-2600K CPU @ 3.40 GHz, 3400 МГц, ядер 4;
+\item Оперативная память: 8192 МБ (DDR4), 1200 MHz;
+\item ОС: Microsoft Windows 7 professional 
+\end{itemize}
+
+\par Проведём эксперимент алгоритма Кэннона на матрицах с разными размерами на 4 процессорах. 
+\par Результаты экспериментов представлены в таблице
+
+\begin{table}[!h]
+\caption{Результаты вычислительных экспериментов}
+\centering
+\begin{tabular}{p{3cm} p{4cm} p{4cm} p{4cm}}
+Матрица  & Последовательно & Параллельно \\
+500      & 2,682453          & 0,609559  \\
+1000     & 24,109888         & 7,889110  \\
+1500     & 84,156007         & 24,504893 \\
+2000     & 236,019478        & 57,258855   
+
+\end{tabular}
+\end{table}
+
+\par Полученные данные демонстрируют разность во времени работы при последовательном и параллельном вычислениях. По результатам можно сделать вывод, что параллельное выполнение программы выигрывает во времени у последовательного во всех случаях уравнений.
+\newpage
+
+% Заключение
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+В результате выполнения лабораторной работы была разработана библиотека, реализующая
+параллельный метод матричного умножения – алгоритм Кэннона, используя технологию MPI.
+\par Для подтверждения корректности работы программы разработан и доведен до успешного
+выполнения набор тестов с использованием библиотеки модульного тестирования Google C++
+Testing Framework.
+\par По данным экспериментов удалось сравнить время работы параллельного и последовательного
+алгоритмов умножения матриц. Выявлено, что параллельный алгоритм Кэннона показывает высокую
+эффективность на достаточно большом объеме данных.
+\newpage
+
+% Список литературы
+\begin{thebibliography}{1}
+\addcontentsline{toc}{section}{Список литературы}
+\bibitem{Gergel}
+Гергель В. П. Теория и практика параллельных вычислений. – 2007. 
+\bibitem{Gergel}
+Гергель В. П., Стронгин Р. Г. Основы параллельных вычислений для многопроцессорных вычислительных систем. – 2003.
+\bibitem{Korneev}
+Корнеев В. Д. Параллельное программирование в MPI //Новосибирск: Изд-во СО РАН. – 2000.
+\end{thebibliography}
+\newpage
+
+% Приложение
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+В данном разделе находится листинг всего кода, написанного в рамках лабораторной работы.
+\begin{lstlisting}
+// cannon.h
+
+/ Copyright 2020 Kirichenko Nikita
+#ifndef MODULES_TASK_3_KIRICHENKO_N_CANNON_CANNON_H_
+#define MODULES_TASK_3_KIRICHENKO_N_CANNON_CANNON_H_
+
+#include <vector>
+
+std::vector<double> GetRandomMatrix(const size_t size);
+
+std::vector<double> MatrixMultiplication(const std::vector<double>& a, const std::vector<double>& b, const size_t size);
+std::vector<double> Cannon(const std::vector<double>& a, const std::vector<double>& b, const size_t size);
+
+#endif  // MODULES_TASK_3_KIRICHENKO_N_CANNON_CANNON_H_#pragma once
+
+\end{lstlisting}
+\begin{lstlisting}
+// cannon.cpp
+
+// Copyright 2020 Kirichenko Nikita
+#include <mpi.h>
+#include <vector>
+#include <random>
+#include <ctime>
+#include <cmath>
+#include <exception>
+#include "../../../modules/task_3/kirichenko_n_cannon/Cannon.h"
+#define EPS 1e-5
+
+static unsigned int offset = 0;
+
+std::vector<double> GetRandomMatrix(const size_t size) {
+    std::mt19937 gen;
+    gen.seed(static_cast<unsigned int>(time(0)) + offset);
+    offset += 10;
+
+    const size_t count = size * size;
+    std::vector<double> vec(count);
+    for (size_t i = 0; i < count; ++i)
+        vec[i] = gen() % 20;
+    return vec;
+}
+
+std::vector<double> MatrixMultiplication(const std::vector<double>& a,
+    const std::vector<double>& b, const size_t size) {
+    if (a.size() != b.size())
+        throw "[ERROR] Matrices A and B have got different size!";
+
+    std::vector<double> c(size * size, 0);
+    for (size_t i = 0; i < size; ++i)
+        for (size_t j = 0; j < size; ++j)
+            for (size_t k = 0; k < size; ++k)
+                c[i * size + j] += a[i * size + k] * b[k * size + j];
+
+    return c;
+}
+
+std::vector<double> Cannon(const std::vector<double>& a, const std::vector<double>& b, const size_t size) {
+    int procRank, procCount;
+    MPI_Status status;
+    MPI_Comm_size(MPI_COMM_WORLD, &procCount);
+    MPI_Comm_rank(MPI_COMM_WORLD, &procRank);
+
+    if (procCount == 1)
+        return MatrixMultiplication(a, b, size);
+
+    int sizeA = 0;
+    int sizeB = 0;
+    int globalSize;
+    if (procRank == 0) {
+        sizeA = static_cast<int>(a.size());
+        sizeB = static_cast<int>(b.size());
+        globalSize = static_cast<int>(size);
+    }
+    MPI_Bcast(&sizeA, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&sizeB, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&globalSize, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    if (sizeA != sizeB) {
+        throw "[ERROR] Matrices A and B have got different size!";
+    }
+
+    double sqrtProcCount = std::sqrt(procCount);
+    if ((sqrtProcCount - std::floor(sqrtProcCount)) >= EPS) {
+        throw "[ERROR] Number of processes must be a perfect square!";
+    }
+
+    if (globalSize % static_cast<int>(sqrtProcCount) != 0) {
+        throw "[ERROR] Incorrect matrices size for Cannon algorithm!";
+    }
+
+    std::vector<double> c(globalSize * globalSize);
+
+    int dimProcess = static_cast<int>(sqrtProcCount);
+    int dimBlock = globalSize / dimProcess;
+
+    int dims[] = { dimProcess, dimProcess };
+    int periods[] = { 1, 1 };
+    int reorder = 1;
+    MPI_Comm cartComm;
+    MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periods, reorder, &cartComm);
+
+    int globalSizes[2] = { static_cast<int>(globalSize), static_cast<int>(globalSize) };
+    int localSize[2] = { dimBlock, dimBlock };
+    int starts[2] = { 0, 0 };
+    MPI_Datatype type, subarrtype;
+    MPI_Type_create_subarray(2, globalSizes, localSize, starts, MPI_ORDER_C, MPI_DOUBLE, &type);
+    MPI_Type_create_resized(type, 0, dimBlock * sizeof(a[0]), &subarrtype);
+    MPI_Type_commit(&subarrtype);
+
+    const int blockElemCount = dimBlock * dimBlock;
+    std::vector<double> localA(blockElemCount);
+    std::vector<double> localB(blockElemCount);
+    std::vector<double> localC(blockElemCount, 0);
+
+    int* sendCounts = new int[procCount];
+    int* displs = new int[procCount];
+    if (procRank == 0) {
+        std::fill_n(sendCounts, procCount, 1);
+
+        int disp = 0;
+        for (int i = 0; i < dimProcess; i++) {
+            for (int j = 0; j < dimProcess; j++) {
+                displs[i * dimProcess + j] = disp;
+                disp++;
+            }
+            disp += (dimBlock - 1) * dimProcess;
+        }
+    }
+
+    MPI_Scatterv(a.data(), sendCounts, displs, subarrtype, &localA[0], blockElemCount, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Scatterv(b.data(), sendCounts, displs, subarrtype, &localB[0], blockElemCount, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    int coord[2];
+    int left, right, up, down;
+    MPI_Cart_coords(cartComm, procRank, 2, coord);
+    MPI_Cart_shift(cartComm, 1, coord[0], &left, &right);
+    MPI_Sendrecv_replace(&localA[0], blockElemCount, MPI_DOUBLE, left, 1, right, 1, cartComm, &status);
+    MPI_Cart_shift(cartComm, 0, coord[1], &up, &down);
+    MPI_Sendrecv_replace(&localB[0], blockElemCount, MPI_DOUBLE, up, 1, down, 1, cartComm, &status);
+
+    std::vector<double> tmpC(blockElemCount);
+    for (int k = 0; k < dimProcess; k++) {
+        tmpC = MatrixMultiplication(localA, localB, dimBlock);
+
+        for (int i = 0; i < dimBlock; i++) {
+            for (int j = 0; j < dimBlock; j++) {
+                localC[i * dimBlock + j] += tmpC[i * dimBlock + j];
+            }
+        }
+
+        MPI_Cart_shift(cartComm, 1, 1, &left, &right);
+        MPI_Cart_shift(cartComm, 0, 1, &up, &down);
+        MPI_Sendrecv_replace(&localA[0], blockElemCount, MPI_DOUBLE, left, 1, right, 1, cartComm, &status);
+        MPI_Sendrecv_replace(&localB[0], blockElemCount, MPI_DOUBLE, up, 1, down, 1, cartComm, &status);
+    }
+
+    MPI_Gatherv(&localC[0], blockElemCount, MPI_DOUBLE, &c[0], sendCounts, displs, subarrtype, 0, MPI_COMM_WORLD);
+
+    return c;
+}
+
+\end{lstlisting}
+\begin{lstlisting}
+// main.cpp
+// Copyright 2020 Kirichenko Nikita
+
+#include <gtest-mpi-listener.hpp>
+#include <gtest/gtest.h>
+#include <vector>
+#include <cmath>
+#include "./Cannon.h"
+
+#define EPS 1e-5
+
+TEST(Cannon, DISABLED_Time) {
+    int procRank, procCount;
+    MPI_Comm_rank(MPI_COMM_WORLD, &procRank);
+    MPI_Comm_size(MPI_COMM_WORLD, &procCount);
+
+    const size_t blockSize = 200;
+
+    int size = procCount * blockSize;
+    double dimProcess = std::sqrt(procCount);
+    int intDimProcess = static_cast<int>(dimProcess);
+    if (std::fabs(dimProcess - intDimProcess) > EPS)
+        return;
+
+    std::vector<double> a, b, c;
+
+    double starttime, endtime;
+    if (procRank == 0) {
+        a = GetRandomMatrix(size);
+        b = GetRandomMatrix(size);
+
+        starttime = MPI_Wtime();
+        std::vector<double> ref = MatrixMultiplication(a, b, size);
+        endtime = MPI_Wtime();
+        std::cout << "Sequential time: " << endtime - starttime << std::endl;
+
+        a = GetRandomMatrix(size);
+        b = GetRandomMatrix(size);
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    starttime = MPI_Wtime();
+    c = Cannon(a, b, size);
+    endtime = MPI_Wtime();
+    if (procRank == 0)
+        std::cout << "Parallel time: " << endtime - starttime << std::endl;
+}
+
+TEST(Cannon, IncorrectSize) {
+    std::vector<double> a(9, 1);
+    std::vector<double> b(16, 1);
+    ASSERT_ANY_THROW(Cannon(a, b, 3));
+}
+
+TEST(Cannon, SequantalMultuplication) {
+    int procRank, procCount;
+    MPI_Comm_rank(MPI_COMM_WORLD, &procRank);
+    MPI_Comm_size(MPI_COMM_WORLD, &procCount);
+
+    if (procRank == 0) {
+        const size_t size = 2;
+        const size_t countElem = size * size;
+        std::vector<double> a = { 0, 1, 2, 3 };
+        std::vector<double> b = { 3, 2, 1, 0 };
+        std::vector<double> ref = { 1, 0, 9, 4 };
+        std::vector<double> c(countElem);
+        c = MatrixMultiplication(a, b, size);
+
+        for (size_t i = 0; i < countElem; ++i)
+            ASSERT_NEAR(ref[i], c[i], EPS);
+    }
+}
+
+TEST(Cannon, SmallSize) {
+    int procRank, procCount;
+    MPI_Comm_rank(MPI_COMM_WORLD, &procRank);
+    MPI_Comm_size(MPI_COMM_WORLD, &procCount);
+
+    const size_t blockSize = 4;
+
+    int size = procCount * blockSize;
+    double dimProcess = std::sqrt(procCount);
+    int intDimProcess = static_cast<int>(dimProcess);
+    if (std::fabs(dimProcess - intDimProcess) > EPS)
+        return;
+
+    std::vector<double> a, b, c;
+
+    if (procRank == 0) {
+        a = GetRandomMatrix(size);
+        b = GetRandomMatrix(size);
+    }
+
+    c = Cannon(a, b, size);
+
+    if (procRank == 0) {
+        std::vector<double> ref = MatrixMultiplication(a, b, size);
+
+        const size_t countElem = size * size;
+        for (size_t i = 0; i < countElem; ++i)
+            ASSERT_NEAR(ref[i], c[i], EPS);
+    }
+}
+
+TEST(Cannon, MediumSize) {
+    int procRank, procCount;
+    MPI_Comm_rank(MPI_COMM_WORLD, &procRank);
+    MPI_Comm_size(MPI_COMM_WORLD, &procCount);
+
+    const size_t blockSize = 11;
+
+    int size = procCount * blockSize;
+    double dimProcess = std::sqrt(procCount);
+    int intDimProcess = static_cast<int>(dimProcess);
+    if (std::fabs(dimProcess - intDimProcess) > EPS)
+        return;
+
+    std::vector<double> a, b, c;
+
+    if (procRank == 0) {
+        a = GetRandomMatrix(size);
+        b = GetRandomMatrix(size);
+    }
+
+    c = Cannon(a, b, size);
+
+    if (procRank == 0) {
+        std::vector<double> ref = MatrixMultiplication(a, b, size);
+
+        const size_t countElem = size * size;
+        for (size_t i = 0; i < countElem; ++i)
+            ASSERT_NEAR(ref[i], c[i], EPS);
+    }
+}
+
+TEST(Cannon, LargeSize) {
+    int procRank, procCount;
+    MPI_Comm_rank(MPI_COMM_WORLD, &procRank);
+    MPI_Comm_size(MPI_COMM_WORLD, &procCount);
+
+    const size_t blockSize = 23;
+
+    int size = procCount * blockSize;
+    double dimProcess = std::sqrt(procCount);
+    int intDimProcess = static_cast<int>(dimProcess);
+    if (std::fabs(dimProcess - intDimProcess) > EPS)
+        return;
+
+    std::vector<double> a, b, c;
+
+    if (procRank == 0) {
+        a = GetRandomMatrix(size);
+        b = GetRandomMatrix(size);
+    }
+
+    c = Cannon(a, b, size);
+
+    if (procRank == 0) {
+        std::vector<double> ref = MatrixMultiplication(a, b, size);
+
+        const size_t countElem = size * size;
+        for (size_t i = 0; i < countElem; ++i)
+            ASSERT_NEAR(ref[i], c[i], EPS);
+    }
+}
+
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    MPI_Init(&argc, &argv);
+
+    ::testing::AddGlobalTestEnvironment(new GTestMPIListener::MPIEnvironment);
+    ::testing::TestEventListeners& listeners =
+        ::testing::UnitTest::GetInstance()->listeners();
+
+    listeners.Release(listeners.default_result_printer());
+    listeners.Release(listeners.default_xml_generator());
+
+    listeners.Append(new GTestMPIListener::MPIMinimalistPrinter);
+    return RUN_ALL_TESTS();
+}
+
+\end{lstlisting}
+
+\end{document}
