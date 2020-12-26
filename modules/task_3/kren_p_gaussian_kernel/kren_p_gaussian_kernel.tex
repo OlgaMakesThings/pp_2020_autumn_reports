@@ -1,0 +1,617 @@
+\documentclass{report}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage[14pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+
+\geometry{a4paper,top=2cm,bottom=3cm,left=2cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+\setlist{nolistsep, itemsep=0.3cm,parsep=0pt}
+
+\lstset{language=C++,
+    basicstyle=\footnotesize,
+    keywordstyle=\color{blue}\ttfamily,
+    stringstyle=\color{red}\ttfamily,
+    commentstyle=\color{green}\ttfamily,
+    morecomment=[l][\color{magenta}]{\#},
+    tabsize=4,
+    breaklines=true,
+    breakatwhitespace=true,
+    title=\lstname,
+}
+
+\makeatletter
+\renewcommand\@biblabel[1]{#1.\hfil}
+\makeatother
+
+\begin{document}
+
+\begin{titlepage}
+
+\begin{center}
+Министерство науки и высшего образования Российской Федерации
+\end{center}
+
+\begin{center}
+Федеральное государственное автономное образовательное учреждение высшего образования \\
+Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского
+\end{center}
+
+\begin{center}
+Институт информационных технологий, математики и механики
+\end{center}
+
+\vspace{4em}
+
+\begin{center}
+\textbf{\LargeОтчет по лабораторной работе} \\
+\end{center}
+\begin{center}
+\textbf{\Large«Линейная фильтрация изображений (блочное разбиение). Ядро Гаусса 3x3»} \\
+\end{center}
+
+\vspace{4em}
+
+\newbox{\lbox}
+\savebox{\lbox}{\hbox{text}}
+\newlength{\maxl}
+\setlength{\maxl}{\wd\lbox}
+\hfill\parbox{7cm}{
+\hspace*{5cm}\hspace*{-5cm}\textbf{Выполнил:} \\ студент группы 381808-2 \\ Крень Полина\\
+\\
+\hspace*{5cm}\hspace*{-5cm}\textbf{Проверил:}\\ доцент кафедры МОСТ, \\ кандидат технических наук \\ Сысоев А. В.\\
+}
+\vspace{\fill}
+
+\begin{center} Нижний Новгород \\ 2020 \end{center}
+
+\end{titlepage}
+
+\setcounter{page}{2}
+
+\newpage
+
+% Введение
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+Под фильтрацией изображений понимают операцию, имеющую своим результатом изображение того же размера, полученное из исходного по некоторым правилам (фильтрам). Обычно цвет каждого пикселя результирующего изображения обусловлена цветами пикселей, расположенных в некоторой его окрестности в исходном изображении.
+\par
+Методы линейной фильтрации предназначены для улучшения качества зашумленных изображений с сохранением перепадов яркости. Значительная часть алгоритмов фильтрации описывается локальным оператором свёртки.
+\par
+Целью данной работы является реализация параллельной линейной фильтрации для изображения, заданного в оттенках серого, и сравнение ее производительности с последовательной реализацией.
+\newpage
+
+% Постановка задачи
+\section*{Постановка задачи}
+\addcontentsline{toc}{section}{Постановка задачи}
+В рамках лабораторной работы нужно реализовать параллельный алгоритм линейной фильтрации изображений (ядро гаусса 3x3).
+\par
+Требуется выполнить следующее: последовательный алгоритм линейной фильтрации, параллельный алгоритм линейной фильтрации (блочное разбиение), провести вычислительные эксперименты, сравнить время работы параллельной и последовательной реализаций.
+\newpage
+
+% Метод решения
+\section*{Метод решения}
+\addcontentsline{toc}{section}{Метод решения}
+Пусть задано исходное изображение A, и обозначим интенсивности его пикселей A(x, y). Линейный фильтр определяется функцией F, заданной на растре. Данная функция называется ядром фильтра, а сама фильтрация производится при помощи операции дискретной свертки (взвешенного суммирования): 
+\par
+B(x, y) =  F(i, j) * A(x + i, y + j)
+\par
+Суммирование производится по (i, j), и значение каждого пикселя B(x, y) определяется пикселями изображения A, которые лежат в окне N, центрированном в точке (x, y) (будем обозначать это множество N(x, y)). Ядро фильтра, заданное на прямоугольной окрестности N, может рассматриваться как матрица m на n, где длины сторон являются нечетными числами. В данной задаче рассматривается ядро 3x3.
+\par 
+Если пиксель (x, y) находится в окрестности краев изображения. В этом случае                 A(x + i, y + j) в может соответствовать пикселю A, лежащему за пределами изображения A. Данную проблему можно разрешить несколькими способами:
+\par 
+1) Не проводить фильтрацию для таких пикселей, обрезав изображение B по краям или закрасив их, к примеру, черным цветом. 
+\par 
+2) Не включать соответствующий пиксель в суммирование, распределив его вес F(i, j) равномерно среди других пикселей окрестности N(x, y). 
+\par 
+3) Доопределить значения пикселей за границами изображения при помощи экстраполяции.
+\par
+4) Доопределить значения пикселей за границами изображения, при помощи зеркального отражения.
+\par
+В данной реализации линейной фильтрации был применен второй пункт.
+\newpage
+
+% Схема распараллеливания
+\section*{Схема распараллеливания}
+\addcontentsline{toc}{section}{Схема распараллеливания}
+В начале все процессы коммуникатора вычисляют свою часть матрицы (начальные строка и столбец, количество строк и столбцов). 
+\par
+Деление матрицы происходит следующим образом: делим количество столбцов и количество строк на корень из количества процессов, остатки от деления распределяем между процессами.
+\par
+После деления матрицы каждый процесс (кроме нулевого) отправляет нулевому свои начальные строку и столбец, количество строк и столбцов. Это осуществляется с помощью Send и Resv. Нулевой процесс собирает все данные в один вектор для дальнейшего удобства вставки в результирующую матрицу.
+\par
+Далее все процессы получают на вход матрицу целиком. Это осуществляется с помощью Bcast. Каждый процесс вычисляет свои значения для новой матрицы и отправляет нулевому процессу (Send и Resv). В конце нулевой процесс все полученные результаты складывает в нужные позиции результирующей матрицы.
+\par
+В итоге результирующая матрица будет расположена в нулевом процессе.
+\newpage
+
+% Описание программной реализации
+\section*{Описание программной реализации}
+\addcontentsline{toc}{section}{Описание программной реализации}
+В программе реализованы методы:
+\begin{itemize}
+\item Генерирование рандомной матрицы с соответствующими размерами (диапазон значений: от 0 до 255): 
+\end{itemize}
+\begin{lstlisting}
+	std::vector <int> getImg(int rows, int cols);
+\end{lstlisting}
+\begin{itemize}
+\item Вычисление значения для конкретного пикселя результирующей матрицы:
+\end{itemize}
+\begin{lstlisting}
+	int compute_pixel(const std::vector <int>& mask, int mask_size, int norm, const std::vector <int>& mtx, int i, int j, int rows, int cols);
+\end{lstlisting}
+\begin{itemize}
+\item Выполнение параллельной линейной фильтрации: 
+\end{itemize}
+\begin{lstlisting}
+	std::vector <int> parall_linear_filter(const std::vector <int> mask, std::vector <int> a, int rows, int cols);
+\end{lstlisting}
+\begin{itemize}
+\item Выполнение последовательной линейной фильтрации: 
+\end{itemize}
+\begin{lstlisting}
+	std::vector <int> SequentialLinearFilter(const std::vector<int> mask, std::vector <int> a, int rows, int cols);
+\end{lstlisting}
+
+\newpage
+% Результаты экспериментов
+\section*{Результаты экспериментов}
+\addcontentsline{toc}{section}{Результаты экспериментов}
+Эксперименты проводились на 4-х ядерном компьютере с операционной системой – Windows 10. Результаты экспериментов приведены в таблице:
+\begin{table}[!h]
+\caption{Результаты вычислительных экспериментов}
+\centering
+\begin{tabular}{lllll}
+Количество процессов & Паралл. время & Послед. время & Разница\\
+2  & 2.322 & 3.203 & 0.881\\
+3 & 1.954 & 2.949 & 0.995\\
+4  & 2.763 & 3.96 & 1.197\\
+\end{tabular}
+\end{table}
+\par
+В ходе эксперимента было доказано, что алгоритм реализован эффективно, ускорение практически линейное. При увеличении количества процессов, ускорение с каждым разом уменьшается. Это объясняется увеличением накладных расходов.
+\par
+Kорректность работы программы могут результаты гугл-тестов.
+\newpage
+
+% Заключение
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+В ходе работы были реализованы последовательный и параллельный алгоритмы линейной фильтрации изображений (ядро Гаусса 3x3). Из результатов вычислительных экспериментов видим, что параллельный алгоритм эффективнее последовательного, так как последовательный алгоритм обрабатывает всю матрицу целиком.
+\newpage
+
+% Список литературы
+\begin{thebibliography}{1}
+\addcontentsline{toc}{section}{Список литературы}
+\bibitem{Gergel}
+Гергель В. П., Стронгин Р. Г. Основы параллельных вычислений для многопроцессорных вычислительных систем. – 2003.
+\bibitem{parallel} Parallel: •	Цифровая обработка сигналов. Обработка изображений. Фильтрация изображений. [Электронный ресурс] // URL: https://studfile.net/preview/5830083/page:4/
+
+\end{thebibliography}
+\newpage
+
+% Приложение
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+\begin{lstlisting}
+						// gaussian_kernel.h
+// Copyright 2020 Kren Polina
+#ifndef MODULES_TASK_3_KREN_P_GAUSSIAN_KERNEL_GAUSSIAN_KERNEL_H_
+#define MODULES_TASK_3_KREN_P_GAUSSIAN_KERNEL_GAUSSIAN_KERNEL_H_
+
+#include <vector>
+
+std::vector <int> get_Img(int cols, int rows);
+int compute_pixel(const std::vector<int> mtx, const std::vector<int> mask, int i, int j, int rows, int cols);
+std::vector <int> parall_linear_filter(const std::vector <int> mask, const std::vector <int> a, int rows, int cols);
+std::vector <int> SequentialLinearFilter(const std::vector <int> mask, const std::vector <int> a, int rows, int cols);
+
+#endif  // MODULES_TASK_3_KREN_P_GAUSSIAN_KERNEL_GAUSSIAN_KERNEL_H_
+
+\end{lstlisting}
+\begin{lstlisting}
+						// gaussian_kernel.cpp
+
+// Copyright 2020 Kren Polina
+#include "../../../modules/task_3/kren_p_gaussian_kernel/gaussian_kernel.h"
+#include <mpi.h>
+#include <algorithm>
+#include <ctime>
+#include <numeric>
+#include <random>
+#include <string>
+#include <vector>
+
+std::vector<int> get_Img(int rows, int columns) {
+  if (rows <= 0 || columns <= 0) {
+    throw - 1;
+  }
+  std::vector<int> matrix(rows * columns);
+  std::mt19937 generator(std::time(0));
+  std::uniform_int_distribution<> distribution{0, 255};
+  for (int i = 0; i < rows * columns; i++) {
+    matrix[i] = distribution(generator);
+  }
+  return matrix;
+}
+
+int compute_pixel(const std::vector<int> matrix, const std::vector<int> mask,
+                  int i, int j, int rows, int columns) {
+  int pixel = 0;
+  int mask_size = sqrt(mask.size());
+  for (int d = -mask_size / 2; d <= mask_size / 2; ++d) {
+    for (int k = -mask_size / 2; k <= mask_size / 2; ++k) {
+      int y = j + k;
+      int x = i + d;
+      if (y < 0 || y > columns - 1) {
+        y = j;
+      }
+      if (x < 0 || x > rows - 1) {
+        x = i;
+      }
+      if (x * columns + y >= columns * rows) {
+        x = i;
+        y = j;
+      }
+      pixel += matrix[x * columns + y] * mask[(d + 1) * 3 + k + 1];
+    }
+  }
+  int normal = std::accumulate(mask.begin(), mask.end(), 0);
+  if (normal != 0) {
+    pixel = std::min(pixel / normal, 255);
+  }
+  return pixel;
+}
+
+std::vector<int> parall_linear_filter(const std::vector<int> mask,
+                                      std::vector<int> matrix, int rows,
+                                      int columns) {
+  if (static_cast<int>(matrix.size()) != rows * columns) {
+    throw - 1;
+  }
+
+  int size, rank;
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+  int mask_size = mask.size();
+  int i_ = 0;
+  int j_ = 0;
+  int rows_ = 0;
+  int columns_ = 0;
+  int sqrt_size = floor(sqrt(size));
+  float sqrt_size_rest = sqrt(size) - sqrt_size;
+  int quantity_cols = columns / sqrt_size;
+  int rest_cols = columns % sqrt_size;
+  int quantity_rows = 0;
+  int rest_rows = 0;
+
+  if (sqrt_size_rest == 0) {  
+    quantity_rows = rows / sqrt_size; 
+    rest_rows = rows % sqrt_size;  
+  } else if (fabs(sqrt_size - sqrt_size_rest) <
+             1) {  
+    quantity_rows = rows - static_cast<int>((rows / (sqrt_size + 0.5))) *
+                               sqrt_size;  
+    rest_rows = static_cast<int>(rows / (sqrt_size + 0.5)) -
+                quantity_rows;  
+  } else {
+    quantity_rows = rows / (sqrt_size + 1); 
+    rest_rows = rows % (sqrt_size + 1); 
+  }
+  int rule = 0;
+  if ((size - (rows / quantity_rows - 1) * sqrt_size) == 0) {
+    rule = 1;
+  } else {
+    rule =
+        columns / (size - (rows / quantity_rows - 1) * sqrt_size) >= mask_size
+            ? 1
+            : 0;
+  }
+  if (quantity_rows >= mask_size && quantity_cols >= mask_size && size > 1 &&
+      rule == 1) {
+    MPI_Bcast(matrix.data(), rows * columns, MPI_INT, 0, MPI_COMM_WORLD);
+    int count = size - (rows / quantity_rows - 1) * sqrt_size;
+    if (rank >= (rows / quantity_rows - 1) * sqrt_size && sqrt_size_rest != 0 &&
+        size > 2) {
+      sqrt_size = size - (rows / quantity_rows - 1) * sqrt_size;
+      quantity_cols = columns / count;
+      rest_cols = columns % count;
+      i_ = (rows / quantity_rows - 1) * quantity_rows;
+      j_ = (sqrt_size - (size - rank)) * quantity_cols;
+      if ((size - rank) % sqrt_size < rest_cols) {
+        columns_ = 1;
+      }
+      if (j_ > 0 && rest_cols > 0) {
+        j_ += (sqrt_size - (size - rank) - 1);
+        if ((sqrt_size - (size - rank) - 1) == 0) {
+          j_ += rest_cols;
+        }
+      }
+      rows_ = quantity_rows + rest_rows;
+      columns_ += quantity_cols;
+    } else {
+      i_ = (rank / (sqrt_size)) * quantity_rows;
+      if (rank % sqrt_size < rest_cols) {
+        j_ = rank % sqrt_size;
+        columns_ = 1;
+      } else {
+        j_ = rest_cols;
+      }
+      j_ += (rank % sqrt_size) * quantity_cols;
+      if (rank >= size - count) {
+        rows_ = rest_rows;
+      }
+      rows_ += quantity_rows;
+      columns_ += quantity_cols;
+    }
+  } else {
+    i_ = 0;
+    i_ = 0;
+    i_ = 0;
+    i_ = 0;
+    i_ = 0;
+    i_ = 0;
+    i_ = 0;
+    i_ = 0;
+    i_ = 0;
+    j_ = 0;
+    rows_ = rows;
+    columns_ = columns;
+  }
+
+  std::vector<int> result(rows * columns);
+
+  if (rank == 0) {
+    for (int i = i_; i < i_ + rows_; i++) {
+      for (int j = j_; j < j_ + columns_; j++) {
+        result[i * columns + j] =
+            compute_pixel(matrix, mask, i, j, rows, columns);
+      }
+    }
+    if (quantity_rows >= mask_size && quantity_cols >= mask_size && size > 1 &&
+        rule == 1) {
+      int proc = 0;
+      int amount_cols_ = quantity_cols, rest_cols_ = rest_cols;
+      MPI_Status status;
+      int sqrt_size_ = sqrt_size;
+      int i1 = 0, l_ = 0;
+      int flag_ = 0, flag = 1;
+      if (sqrt_size == 1) {
+        i1++;
+        flag = 0;
+        flag_ = 1;
+        l_++;
+      }
+      for (int i = i1; i < rows / quantity_rows;
+           i++) {  
+        for (int j = 0; j < quantity_rows; j++) {
+          if (proc * sqrt_size + flag_ >=
+                  (rows / quantity_rows - 1) * sqrt_size &&
+              sqrt_size_rest != 0 && size > 2) {
+            amount_cols_ =
+                columns / (size - (rows / quantity_rows - 1) * sqrt_size);
+            rest_cols_ =
+                columns % (size - (rows / quantity_rows - 1) * sqrt_size);
+            sqrt_size_ = size - (rows / quantity_rows - 1) * sqrt_size;
+          }
+          int l1 = 0;
+          if (flag == 1) {
+            l1++;
+          }
+          for (int l = l1; l < sqrt_size_; l++) {
+            int rest = 0, c = 0;
+            if (l >= rest_cols_) {
+              rest = rest_cols_;
+            } else {
+              rest = l;
+              c = 1;
+            }
+            MPI_Recv(&result[(i * quantity_rows + j) * columns +
+                             l * amount_cols_ + rest],
+                     amount_cols_ + c, MPI_INT, proc * sqrt_size + l + l_, 1,
+                     MPI_COMM_WORLD, &status);
+          }
+        }
+        flag = 0;
+        amount_cols_ = quantity_cols;
+        rest_cols_ = rest_cols;
+        sqrt_size_ = sqrt_size;
+        proc++;
+        if (proc == size - 1) {
+          break;
+        }
+      }
+      amount_cols_ = quantity_cols;
+      rest_cols_ = rest_cols;
+      for (int i = 0; i < rest_rows; i++) {  
+        for (int l = 0; l < size - (rows / quantity_rows - 1) * sqrt_size;
+             l++) {
+          if (proc * sqrt_size + l >= (rows / quantity_rows - 1) * sqrt_size &&
+              sqrt_size_rest != 0 && size > 2) {
+            amount_cols_ =
+                columns / (size - (rows / quantity_rows - 1) * sqrt_size);
+            rest_cols_ =
+                columns % (size - (rows / quantity_rows - 1) * sqrt_size);
+          }
+          int rest = 0, c = 0;
+          ;
+          if (l >= rest_cols_) {
+            rest = rest_cols_;
+          } else {
+            c = 1;
+            rest = l;
+          }
+          MPI_Recv(&result[(rows - rest_rows + i) * columns + l * amount_cols_ +
+                           rest],
+                   amount_cols_ + c, MPI_INT,
+                   (rows / quantity_rows - 1) * sqrt_size + l, 1,
+                   MPI_COMM_WORLD, &status);
+        }
+      }
+    }
+  } else {
+    std::vector<int> result_;
+    if (quantity_rows >= mask_size && quantity_cols >= mask_size && rule == 1) {
+      for (int i = i_; i < i_ + rows_; i++) {
+        for (int j = j_; j < j_ + columns_; j++) {
+          result_.push_back(compute_pixel(matrix, mask, i, j, rows, columns));
+        }
+        MPI_Send(result_.data(), columns_, MPI_INT, 0, 1, MPI_COMM_WORLD);
+        result_.clear();
+      }
+    }
+  }
+  return result;
+}
+
+std::vector<int> SequentialLinearFilter(const std::vector<int> mask,
+                                        std::vector<int> matrix, int rows,
+                                        int columns) {
+  if (static_cast<int>(matrix.size()) != rows * columns) {
+    throw - 1;
+  }
+  std::vector<int> result;
+  for (int i = 0; i < rows; i++) {
+    for (int j = 0; j < columns; j++) {
+      result.push_back(compute_pixel(matrix, mask, i, j, rows, columns));
+    }
+  }
+  return result;
+}
+\end{lstlisting}
+\begin{lstlisting}
+						// main.cpp
+
+// Copyright 2020 Kren Polina
+#include <gtest-mpi-listener.hpp>
+#include <vector>
+#include "../../../modules/task_3/kren_p_gaussian_kernel/gaussian_kernel.h"
+
+TEST(Linear_Filtering_MPI, Test_not_correct_size_of_matrix) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank == 0) {
+        ASSERT_ANY_THROW(get_Img(-1, 3));
+    }
+}
+
+TEST(Linear_Filtering_MPI, Test_not_correct_solve_1) {
+    std::vector <int> res;
+    int rank;
+    std::vector <int> mask = { 0, 0, 0, 0, 1, 0, 0, 0, 0 };
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank == 0) {
+        res = get_Img(5, 7);
+        ASSERT_ANY_THROW(parall_linear_filter(mask, res, 3, 2));
+    }
+}
+
+TEST(Linear_Filtering_MPI, Test_correct_solve_2) {
+    int rows = 3, columns = 3;
+    std::vector <int> mask = { 0, 1, 0, 1, -4, 1, 0, 1, 0 };
+    std::vector <int> res(rows * columns), res_seq(rows * columns);
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank == 0) {
+        res[0] = 150;
+        res[1] = 128;
+        res[2] = 100;
+        res[3] = 200;
+        res[4] = 175;
+        res[5] = 100;
+        res[6] = 50;
+        res[7] = 250;
+        res[8] = 200;
+        res_seq[0] = 28;
+        res_seq[1] = 41;
+        res_seq[2] = 28;
+        res_seq[3] = -225;
+        res_seq[4] = -22;
+        res_seq[5] = 175;
+        res_seq[6] = 350;
+        res_seq[7] = -325;
+        res_seq[8] = -50;
+    }
+    std::vector <int> ans(rows * columns);
+    ans = parall_linear_filter(mask, res, rows, columns);
+    if (rank == 0) {
+        ASSERT_EQ(res_seq, ans);
+    }
+}
+
+TEST(Linear_Filtering_MPI, Test_correct_solve_3) {
+    int rows = 10, columns = 5;
+    std::vector <int> mask = { 1, 2, 1, 2, 4, 2, 1, 2, 1 };
+    std::vector <int> result(rows * columns);
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank == 0) {
+        result = get_Img(rows, columns);
+    }
+    std::vector <int> ans(rows * columns);
+    double start = MPI_Wtime();
+    ans = parall_linear_filter(mask, result, rows, columns);
+    double time = MPI_Wtime() - start;
+    std::vector <int> ans_seq(rows * columns);
+    if (rank == 0) {
+      std::cout << std::setprecision(16) << " Time paral:" << time << std::endl;
+      double start2 = MPI_Wtime();
+      ans_seq = SequentialLinearFilter(mask, result, rows, columns);
+      double time2 = MPI_Wtime() - start2;
+      std::cout << std::setprecision(16) << " Time seq:" << time2 << std::endl;
+        ASSERT_EQ(ans_seq, ans);
+    }
+}
+
+TEST(Linear_Filtering_MPI, Test_correct_solve_4) {
+    int rows = 200, cols = 400;
+    std::vector <int> mask = { 1, 2, 1, 2, 4, 2, 1, 2, 1 };
+    std::vector <int> result(rows * cols);
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank == 0) {
+        result = get_Img(rows, cols);
+    }
+    std::vector <int> ans(rows * cols);
+    double start = MPI_Wtime();
+    ans = parall_linear_filter(mask, result, rows, cols);
+    double time = MPI_Wtime() - start;
+    std::vector <int> ans_seq(rows * cols);
+    if (rank == 0) {
+      std::cout << std::setprecision(16) << " Time paral:" << time << std::endl;
+      double start2 = MPI_Wtime();
+        ans_seq = SequentialLinearFilter(mask, result, rows, cols);
+      double time2 = MPI_Wtime() - start2;
+      std::cout << std::setprecision(16) << " Time seq:" << time2 << std::endl;
+        ASSERT_EQ(ans_seq, ans);
+    }
+}
+
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    MPI_Init(&argc, &argv);
+
+    ::testing::AddGlobalTestEnvironment(new GTestMPIListener::MPIEnvironment);
+    ::testing::TestEventListeners& listeners =
+        ::testing::UnitTest::GetInstance()->listeners();
+
+    listeners.Release(listeners.default_result_printer());
+    listeners.Release(listeners.default_xml_generator());
+
+    listeners.Append(new GTestMPIListener::MPIMinimalistPrinter);
+    return RUN_ALL_TESTS();
+}
+
+\end{lstlisting}
+    \end{document}
