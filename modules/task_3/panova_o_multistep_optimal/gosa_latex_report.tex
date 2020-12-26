@@ -1,0 +1,536 @@
+\documentclass{report}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage[14pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+
+\geometry{a4paper,top=2cm,bottom=3cm,left=2cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+\setlist{nolistsep, itemsep=0.3cm,parsep=0pt}
+
+\lstset{language=C++,
+		basicstyle=\footnotesize,
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{red}\ttfamily,
+		commentstyle=\color{green}\ttfamily,
+		morecomment=[l][\color{magenta}]{\#}, 
+		tabsize=4,
+		breaklines=true,
+  		breakatwhitespace=true,
+  		title=\lstname,       
+}
+
+\makeatletter
+\renewcommand\@biblabel[1]{#1.\hfil}
+\makeatother
+
+\begin{document}
+
+\begin{titlepage}
+
+\begin{center}
+Министерство науки и высшего образования Российской Федерации
+\end{center}
+
+\begin{center}
+Федеральное государственное автономное образовательное учреждение высшего образования \\
+Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского
+\end{center}
+
+\begin{center}
+Институт информационных технологий, математики и механики
+\end{center}
+
+\vspace{4em}
+
+\begin{center}
+\textbf{\LargeОтчет по лабораторной работе} \\
+\end{center}
+\begin{center}
+\textbf{\Large«Многошаговая схема решения двумерных задач глобальной оптимизации. Распараллеливание путём разделения области поиска»} \\
+\end{center}
+
+\vspace{4em}
+
+\newbox{\lbox}
+\savebox{\lbox}{\hbox{text}}
+\newlength{\maxl}
+\setlength{\maxl}{\wd\lbox}
+\hfill\parbox{7cm}{
+\hspace*{5cm}\hspace*{-5cm}\textbf{Выполнил:} \\ студент группы 381806-2 \\ Панова О. Р.\\
+\\
+\hspace*{5cm}\hspace*{-5cm}\textbf{Проверил:}\\ доцент кафедры МОСТ, \\ кандидат технических наук \\ Сысоев А. В.\\
+}
+\vspace{\fill}
+
+\begin{center} Нижний Новгород \\ 2020 \end{center}
+
+\end{titlepage}
+
+\setcounter{page}{2}
+
+% Содержание
+\tableofcontents
+\newpage
+
+% Введение
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+В данной лабораторной работе рассматривается задача глобальной оптимизации, которая позволяет минимизировать критерии в области поиска, параметры которой могут меняться.
+\par
+Задача выбора оптимальных параметров функционирования нового объекта или процесса является вычислительно-трудоемкой задачей. Весьма часто в сложных математических моделях характеристики эффективности не будут обладать свойством монотонности, что усложняет целенаправленный поиск наилучшего решения. Применяемые в таких задачах процедуры глобального поиска обеспечивают целенаправленность за счет ограниченности изменения характеристик объекта при ограниченных изменениях его параметров (отражающего ограниченность мощностей, вызывающих изменения в объекте). Математическая формулировка этого факта в данной лабораторной работе имеет форму условия Липшица.
+
+\newpage
+
+% Постановка задачи
+\section*{Постановка задачи}
+\addcontentsline{toc}{section}{Постановка задачи}
+Задача лабораторной работы - реализовать решение задачи глобальной оптимизации. Решение должно содержать последовательную и параллельную версии. Распараллеливание должно происходить путем разделения области поиска.
+\par
+На основе разработанной программы необходимо провести вычислительные эксперименты: сравнить время работы параллельного и последовательного алгоритмов на разных входных данных, на основании результатов сделать вывод об эффективности параллельнной версии метода.
+\par
+Корректность разработанных версий алгоритма должна проверяться с помощью функционального тестирования с использованием Google тестов.
+\newpage
+
+% Теоретическая часть
+\section*{Теоретическая часть}
+\addcontentsline{toc}{section}{Теоретическая часть}
+Формальная постановка задачи выглядит следующим образом:
+$f({x}^{\ast}) = min \{f(x):x \in [a,b]\}$
+\par При условии, что исследуемая функция удовлетворяет условию Липшица, будем использовать метод Стронгина решения задачи глобальной оптимизации. Данный метод заключается в построении неравномерной сетки испытаний на заданном отрезке.
+\par Пусть $x$ – вектор сетки испытаний. В начале $x_0 = a, x_1 = b$. Алгоритм построения нового звена сетки выглядит следующим образом:
+\begin{enumerate}
+	\item Отсортировать массив $x$ в порядке возрастания координат.
+	\item Вычислить текущую оценку константы Липшица по следующим формулам: \par
+	$M = \max_{0<j<n}\frac{|y_i - y_{i-1} |}{x_i - x_{i-1}},$\par
+	$
+	m =\left\{
+	\begin{array}{rcl}
+		r \times{} M&,&M > 0,\\
+		1& , &M = 0\\
+	\end{array}
+	\right.
+	$ \par
+	Где $y_i = f(x_i), r < 1$ параметр надежности метода для выполнения условия сходимости метода:$m > 2L$, где $L$ константа Липшица.
+	\item Для каждого интервала сетки $(x_{i-1},x_i), 1 \leq i \leq k$ вычислить их характеристики - меры вероятности назождения в данном интервале точки глобального минимума.: \par
+	$R(1) = 2\times{}(x_1 - x_0) - 4\frac{y_1}{m}$ \par
+	$R(k) = 2\times{}(x_1 - x_0) - 4\frac{y_1}{m}$ \par
+	$R(i) = x_i - x_{i-1} + \frac{({y_i - y_{i-1}})^2}{m^2(x_i-x_{-1})}, 0 < i < k$ \par
+	\item Найти интервал с максимальным значением $R(t)$.\par
+	\item Добавить новое звено в неравномерную сетку испытаний:\par
+	$x_{k+1} = \frac{x_t - x_{t -1}}{2} - \frac{y_i - y_{i - 1}}{2m}$
+	\item Если $x_t - x_{t -1} < \epsilon$, где  $\epsilon$ - заданная точность, то выполнение алгоритма прекращается, а искомой точкой является $x_1$ . В противном случае необходимо вернуться к началу.
+\end{enumerate}
+\newpage
+
+% Схема распараллеливания
+\section*{Схема распараллеливания}
+\addcontentsline{toc}{section}{Схема распараллеливания}
+Параллельный вариант метода Стронгина можно описать следующим образом:
+\begin{enumerate}
+\item Область поиска разбивается на части
+\item На каждой из подобластей запускается последовательный алгоритма
+\item Из всех локальных решений выбирается точка, в которой значение функции минимально.
+\end{enumerate}
+\par Так как алгоритм нахождения глобального минимума предусматривает построение неравномерной сетки испытаний на заданном отрезке, деление $[a,b]$ на равные части нецелесообразно, поскольку нагрузка на процессы будет ложиться неравномерно. В таком случае схема распараллеливания имеет вид:\par
+\begin{enumerate}
+	\item На нулевом процессе проводится 64 итерации последовательного метода Стронгина.
+	\item Если решение не найдено, вычисляется количество отрезков, на которых каждый процесс будет запускать последовательный алгоритм, по формуле:\par
+	$h = \frac{64}{N}$, где $N$ - количество процессов
+	\item Границы интервала, на котором будет запущен последовательный вариант алгоритма, будут иметь вид:\par
+	$a = x_{i\times{}h}, b = x_{(i+1)\times{}h}, i = \overline{0,N} $
+	\item Запускается последовательный вариант алгоритма на отрезках, границы которых вычислены в п.3, вычисляется локальный результат на каждом процессе.
+	\item На нулевом процессе собираются локальные результаты со всех процессов, из них выбирается точка с наименьшим значением функции. Данная точка будет являться результатом выполнения программы.
+\end{enumerate}
+\newpage
+
+% Описание программной реализации
+\section*{Описание программной реализации}
+\addcontentsline{toc}{section}{Описание программной реализации}
+Рассмотрим функции, реализованные в итоговой программе:\par
+
+\begin{itemize}	 
+    \item Вычисление оценки константы Липшица заданного интервал: \par
+	\begin{lstlisting}
+                     double GetMForLipschitz(int num, const std::vector<double>& vec, std::function<double(double*)> my_function);
+	\end{lstlisting}\par
+		\begin{lstlisting}
+		double GetmForLipschitz(double M, double reliability);
+	\end{lstlisting}\par
+	\item Вычисление характеристики заданного интервала: \par
+	\begin{lstlisting}
+		double GetProbability(double m, int num, const std::vector<double>& vec, std::function<double(double*)> my_function);
+	\end{lstlisting}\par
+	\item Значение заданной функции от аргумента $x$ \par
+	\begin{lstlisting}
+		double GetValue(double x, std::function<double(double*)> my_function);
+	\end{lstlisting}\par
+	\item Последовательная реализация метода: \par	
+	\begin{lstlisting}
+		double SequentialOptimization(double start, double end, std::function<double(double*)> my_function, double eps);
+	\end{lstlisting}\par
+	\item Параллельная реализация метода: \par	
+	\begin{lstlisting}
+		double ParallelOptimization(double start, double end, std::function<double(double*)> my_function, double eps);
+	\end{lstlisting}\par
+\end{itemize}
+\newpage
+
+% Корректность алгоритма
+\section*{Корректность алгоритма}
+\addcontentsline{toc}{section}{Корректность алгоритма}
+С целью подтверждения корректности разработанного алгоритма в программе реализованы тесты с использованием Google C++ Testing Framework – библиотеки для модульного тестирования. Всего было реализовано 5 тестов. 
+\par С помощью тестов была определена эквивалентность результатов последовательного и параллельного методов на примере нескольких разновидностей функций.
+\newpage
+
+% Результаты экспериментов
+\section*{Результаты экспериментов}
+\addcontentsline{toc}{section}{Результаты экспериментов}
+Для проведения экспериментов использовался компьютер со следующими аппаратными характеристиками:
+\begin{itemize}
+\item Процессор: Intel(R) Core(TM) i3-3110, 2.40 GHz, ядер: 2;
+\item Оперативная память: 8 Gb, 1600 MHz;
+\item ОС: Microsoft Windows 10 Pro;
+\item Среда разработки: Visual Studio 2019.
+\end{itemize}
+
+\par Некоторые из функций, поиск глобального минимума которых необходимо найти:\par
+\begin{itemize}
+\item $f(x) = \sin(5x)\times{}\cos(2x) $
+\item $f(x) = \exp(-0,5x)\times{}\sin(6x-1,5) $
+\end{itemize}
+\par Результаты экспериментов представлены в Таблице 1.
+
+\begin{table}[!h]
+\caption{Результаты проведения вычислительных экспериментов с точностью $10^{-5}$}\par
+\centering
+\begin{tabular}{|l|l|l|l|l|}
+\hline
+Функция & Последовательно & Параллельно 2 процесса & Параллельно 4 процесса  \\ \hline
+$1$        & 1,5689        & 1,5708     & 1,5708      \\
+$2$        & -2,12347         & -2,122     & -2,12005       \\
+\hline
+\end{tabular}
+\end{table}
+
+\par Опираясь на данные, полученные после проведения экспериментов, можно сделать вывод о том, что параллельный вариант нахождения глобального минимума в большинстве случаев работает быстрее последовательного. Так, ускорение на 2-х процессах составляет примерно $1.4$, на 4-х процессах - $1.63$. Однако при большом количестве процессов появляются регрессии. Это объясняется переключениями между процессами и обменом данными между ними при коллективных операциях.Также некоторые процессы будут ожидать своей очереди на выполнение операций из-за недостатка вычислительной мощности.
+
+% Заключение
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+По завершении выполнения данной лабораторной работы, был успешно реализован метод Стронгина решения задачи глобальной оптимизации в последовательном и параллельном вариантах. Работоспособность программы была проверена с помощью Google Test.
+\par Испытания на разных функциях с различными данными показали, что параллельный вариант быстрее и эффективнее последовательного. Также было продемонстрировано на примере, что параллельный метод, созданный с помощью программного интерфейса MPI, является более подходящим для использования.
+\par Кроме того, не будет лишним упомянуть, что распараллеливание метода Стронгина путём разделения области поиска является не самым оптимальным вариантом распараллеливания, из-за неравномерной нагрузки на процессы при проведении неравномерной сетки испытаний.
+\par Полагаясь на результы экспериментов, можно сделать вывод, что наиболее эффективно алгоритм работает на 4-5 процессах.
+\newpage
+
+% Список литературы
+\begin{thebibliography}{1}
+\addcontentsline{toc}{section}{Список литературы}
+\bibitem{Sidnev} Сысоев А.В., Баркалов К.А., Гергель В.П.,  И.Г. Лебедев «MPI-реализация блочной многошаговой схемы параллельного решения задач глобальной оптимизации». Нижний Новгород, 2015. 
+\bibitem{Sidnev} Гришагин В.А., Исрафилов Р.А. «Параллельная реализация адаптивной многошаговой схемы»
+редукции размерности для задач глобальной оптимизации». Нижний Новгород, 2017.
+\bibitem{Sidnev}Evtushenko Y., Posypkin M., Sigal I. A framework for parallel large-scale global optimization // Computer Science – Research and Development. 2009.
+\bibitem{Sidnev} Стронгин Р.Г. Гергель В.П., Баркалов К.А «ПАРАЛЛЕЛЬНЫЕ МЕТОДЫ РЕШЕНИЯ ЗАДАЧ
+ГЛОБАЛЬНОЙ ОПТИМИЗАЦИИ». Нижний Новгород, 2009.
+\bibitem{ЦСТ} Центр суперкопьютерных технологий [Электронный ресурс] // URL: \url {http://www.hpcc.unn.ru/?dir=893} (дата обращения: 26.12.2020)
+\end{thebibliography}
+\newpage
+
+% Приложение
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+В данном разделе находится листинг кода, созданного в рамках лабораторной работы. \par
+\begin{lstlisting}
+//optimization_split_area.h
+// Copyright 2020 Panova Olga
+#ifndef MODULES_TASK_3_PANOVA_O_OPTIMIZATION_SPLT_AREA_OPTIMIZATION_SPLIT_AREA_H_
+#define MODULES_TASK_3_PANOVA_O_OPTIMIZATION_SPLT_AREA_OPTIMIZATION_SPLIT_AREA_H_
+#include <functional>
+#include <vector>
+double GetMForLipschitz(int num, const std::vector<double>& vec, std::function<double(double*)> my_function);
+double GetmForLipschitz(double M, double reliability);
+double GetProbability(double m, int num, const std::vector<double>& vec, std::function<double(double*)> my_function);
+double GetValue(double x, std::function<double(double*)> my_function);
+double SequentialOptimization(double start, double end, std::function<double(double*)> my_function, double eps);
+double ParallelOptimization(double start, double end, std::function<double(double*)> my_function, double eps);
+#endif  // MODULES_TASK_3_PANOVA_O_OPTIMIZATION_SPLT_AREA_OPTIMIZATION_SPLIT_AREA_H_
+\end{lstlisting}
+\begin{lstlisting}
+//optimization_split_area.cpp
+// Copyright 2020 Panova Olga
+#include <mpi.h>
+#include <utility>
+#include <list>
+#include <algorithm>
+#include <vector>
+#include <cmath>
+#include <iostream>
+#include "../../../modules/task_3/panova_o_optimization_splt_area/optimization_split_area.h"
+double GetMForLipschitz(int num, const std::vector<double>& vec, std::function<double(double*)> my_function) {
+    double difference = GetValue(vec[num], my_function) - GetValue(vec[num - 1], my_function);
+    double res = std::abs(difference / (vec[num] - vec[num - 1]));
+    return res;
+}
+double GetmForLipschitz(double M, double reliability) {
+    if (M == 0) {
+        return 1;
+    } else {
+        return M * reliability;
+    }
+}
+double GetProbability(double m, int num, const std::vector<double>& vec, std::function<double(double*)> my_function) {
+    double difference = GetValue(vec[num], my_function) - GetValue(vec[num - 1], my_function);
+    double sum = GetValue(vec[num], my_function) + GetValue(vec[num - 1], my_function);
+    double xdifference = (vec[num] - vec[num - 1]) * m;
+    double res = xdifference + (difference * difference) / xdifference - 2 * sum;
+    return res;
+}
+double GetValue(double x, std::function<double(double*)> my_function) {
+    double* argument = &x;
+    return my_function(argument);
+}
+double SequentialOptimization(double start, double end, std::function<double(double*)> my_function, double eps) {
+    int count = 1;
+    int index = 1;
+    double reliability = 2;
+    double probability;
+    std::vector<double> res(1001, -1e+300);
+    double m = GetmForLipschitz(GetMForLipschitz(1, res, my_function), reliability);
+    res[0] = start;
+    res[1] = end;
+    double difference = GetValue(res[1], my_function) - GetValue(res[0], my_function);
+    res[2] = (res[1] + res[0]) / 2 - difference / (2 * m);
+    ++count;
+    while (count < 1000) {
+        sort(res.begin(), res.begin() + count + 1);
+        double M = GetMForLipschitz(1, res, my_function);
+        for (int i = 1; i <= count; i++) {
+            M = std::max(M, GetMForLipschitz(i, res, my_function));
+        }
+        m = GetmForLipschitz(M, reliability);
+        probability = GetProbability(m, 1, res, my_function);
+        index = 1;
+        for (int i = 1; i <= count; i++) {
+            if (probability < GetProbability(m, i, res, my_function)) {
+                probability = GetProbability(m, i, res, my_function);
+                index = i;
+            }
+        }
+        double difference = GetValue(res[index], my_function) - GetValue(res[index - 1], my_function);
+        res[count + 1] = (res[index] + res[index - 1]) / 2 - difference / (2 * m);
+        ++count;
+        if (res[index] - res[index - 1] < eps) {
+            break;
+        }
+    }
+    return res[index];
+}
+double ParallelOptimization(double start, double end, std::function<double(double*)> my_function, double eps) {
+    int count = 1;
+    int index = 1;
+    double reliability = 2;
+    double probability;
+    double tmp;
+    int size, rank;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    if (size == 1) {
+        return SequentialOptimization(start, end, my_function, eps);
+    }
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double local_res;
+    std::vector<double> total_res(size);
+    std::vector<double> x(65, -1e+300);
+    x[0] = start;
+    x[1] = end;
+    double m = GetmForLipschitz(GetMForLipschitz(1, x, my_function), reliability);
+    double difference = GetValue(x[1], my_function) - GetValue(x[0], my_function);
+    x[2] = (x[1] + x[0]) / 2 - difference / (2 * m);
+    ++count;
+    while (count < 64) {
+        sort(x.begin(), x.begin() + count + 1);
+        double M = GetMForLipschitz(1, x, my_function);
+        for (int i = 1; i <= count; i++) {
+            M = std::max(M, GetMForLipschitz(i, x, my_function));
+        }
+        m = GetmForLipschitz(M, reliability);
+        probability = GetProbability(m, 1, x, my_function);
+        index = 1;
+        for (int i = 1; i <= count; i++) {
+            tmp = GetProbability(m, i, x, my_function);
+            if (probability < tmp) {
+                probability = tmp;
+                index = i;
+            }
+        }
+        tmp = 2 * (x[count] - x[count - 1]) - 4 * GetValue(x[count - 1], my_function) /
+            GetMForLipschitz(1, x, my_function);
+        if (probability < tmp) {
+            probability = tmp;
+            index = count;
+        }
+        double difference = GetValue(x[index], my_function) - GetValue(x[index - 1], my_function);
+        x[count + 1] = (x[index] + x[index - 1]) / 2 - difference / (2 * m);
+        ++count;
+        if (x[index] - x[index - 1] < eps) {
+            break;
+        }
+    }
+    sort(x.begin(), x.begin() + count + 1);
+    double h = 64 / size;
+    double local_start;
+    double local_end;
+    if (rank != size - 1) {
+        local_start = x[rank * h];
+        local_end = x[(rank + 1) * h];
+    } else {
+        local_start = x[rank * h];
+        local_end = x[63];
+    }
+    local_res = SequentialOptimization(local_start, local_end, my_function, eps);
+    MPI_Gather(&local_res, 1, MPI_DOUBLE, &total_res[0], 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    if (rank == 0) {
+        for (int i = 0; i < size; i++) {
+            if (GetValue(total_res[i], my_function) < GetValue(total_res[0], my_function)) {
+                std::swap(total_res[i], total_res[0]);
+            }
+        }
+    }
+    return total_res[0];
+}
+\end{lstlisting}
+\texttt{Файл с реализацией тестов main.cpp}
+\begin{lstlisting}
+// Copyright 2020 Panova Olga
+#include <gtest-mpi-listener.hpp>
+#include <gtest/gtest.h>
+#include <mpi.h>
+#include <cmath>
+#include <iostream>
+#include "../../../modules/task_3/panova_o_optimization_splt_area/optimization_split_area.h"
+double func1(double* _x) {
+    double x = *_x;
+    return cos(2 * x) * sin(5 * x);  // global minmum 1.568
+}
+double func2(double* _x) {
+    double x = *_x;
+    return x * sin(5 * x);  // global minimum 4.72
+}
+double func3(double* _x) {
+    double x = *_x;
+    return exp(-0.5 * x) * sin(6 * x - 1.5);  // global minimum -2.12
+}
+double func4(double* _x) {
+    double x = *_x;
+    return -pow(x, 3) / 3 + 3 * pow(x, 2) - 5 * x - 1;  // global minimum 1
+}
+TEST(GlobalOptimization, SequentialSearchIsCorrect) {
+    double res = SequentialOptimization(-2, 2, func1, 1e-5);
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank == 0) {
+        ASSERT_NEAR(res, 1.568, 1e-2);
+    }
+}
+TEST(GlobalOptimization, SeqAndParEquality) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double start_seq = MPI_Wtime();
+    double res_seq = SequentialOptimization(-2, 2, func1, 1e-5);
+    double end_seq = MPI_Wtime();
+    double start_par = MPI_Wtime();
+    double res_par = ParallelOptimization(-2, 2, func1, 1e-5);
+    double end_par = MPI_Wtime();
+    if (rank == 0) {
+        if ((end_par - start_par) > (end_seq - start_seq)) {
+            std::cout << "Sequential more effective" << std::endl;
+            std::cout << "Time difference: " << (end_par - start_par) - (end_seq - start_seq) << std::endl;
+        } else {
+            std::cout << "Parallel more effective" << std::endl;
+            std::cout << "Time difference: " << (end_seq - start_seq) - (end_par - start_par) << std::endl;
+        }
+        ASSERT_NEAR(res_seq, res_par, 1e-2);
+    }
+}
+TEST(GlobalOptimization, MultiExtraFunction_Trig) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double start_seq = MPI_Wtime();
+    double res_seq = SequentialOptimization(-1, 5, func2, 1e-5);
+    double end_seq = MPI_Wtime();
+    double start_par = MPI_Wtime();
+    double res_par = ParallelOptimization(-1, 5, func2, 1e-5);
+    double end_par = MPI_Wtime();
+    if (rank == 0) {
+        if ((end_par - start_par) > (end_seq - start_seq)) {
+            std::cout << "Sequential more effective" << std::endl;
+            std::cout << "Time difference: " << (end_par - start_par) - (end_seq - start_seq) << std::endl;
+        } else {
+            std::cout << "Parallel more effective" << std::endl;
+            std::cout << "Time difference: " << (end_seq - start_seq) - (end_par - start_par) << std::endl;
+        }
+        ASSERT_NEAR(res_par, res_seq, 1e-2);
+    }
+}
+TEST(GlobalOptimization, TwoExtraFunction_Exp) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double start_seq = MPI_Wtime();
+    double res_seq = SequentialOptimization(-3, 1, func3, 1e-5);
+    double end_seq = MPI_Wtime();
+    double start_par = MPI_Wtime();
+    double res_par = ParallelOptimization(-3, 1, func3, 1e-5);
+    double end_par = MPI_Wtime();
+    if (rank == 0) {
+        if ((end_par - start_par) > (end_seq - start_seq)) {
+            std::cout << "Sequential more effective" << std::endl;
+            std::cout << "Time difference: " << (end_par - start_par) - (end_seq - start_seq) << std::endl;
+        } else {
+            std::cout << "Parallel more effective" << std::endl;
+            std::cout << "Time difference: " << (end_seq - start_seq) - (end_par - start_par) << std::endl;
+        }
+        ASSERT_NEAR(res_par, res_seq, 1e-2);
+    }
+}
+TEST(GlobalOptimization, MultiExtraFunction_Polinom) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double start_seq = MPI_Wtime();
+    double res_seq = SequentialOptimization(0, 7, func4, 1e-5);
+    double end_seq = MPI_Wtime();
+    double start_par = MPI_Wtime();
+    double res_par = ParallelOptimization(0, 7, func4, 1e-5);
+    double end_par = MPI_Wtime();
+    if (rank == 0) {
+        if ((end_par - start_par) > (end_seq - start_seq)) {
+            std::cout << "Sequential more effective" << std::endl;
+            std::cout << "Time difference: " << (end_par - start_par) - (end_seq - start_seq) << std::endl;
+        } else {
+            std::cout << "Parallel more effective" << std::endl;
+            std::cout << "Time difference: " << (end_seq - start_seq) - (end_par - start_par) << std::endl;
+        }
+        ASSERT_NEAR(res_par, res_seq, 1e-1);
+    }
+}
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    MPI_Init(&argc, &argv);
+    ::testing::AddGlobalTestEnvironment(new GTestMPIListener::MPIEnvironment);
+    ::testing::TestEventListeners& lst = ::testing::UnitTest::GetInstance()->listeners();
+    lst.Release(lst.default_result_printer());
+    lst.Release(lst.default_xml_generator());
+    lst.Append(new GTestMPIListener::MPIMinimalistPrinter);
+    return RUN_ALL_TESTS();
+}
+\end{lstlisting}
+
+\end{document}
