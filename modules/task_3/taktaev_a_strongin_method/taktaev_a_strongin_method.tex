@@ -1,0 +1,530 @@
+\documentclass{report}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage[14pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+
+
+\geometry{a4paper,top=2cm,bottom=3cm,left=2cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+\setlist{nolistsep, itemsep=0.3cm,parsep=0pt}
+
+\lstset{language=C++,
+		basicstyle=\footnotesize,
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{red}\ttfamily,
+		commentstyle=\color{green}\ttfamily,
+		morecomment=[l][\color{magenta}]{\#}, 
+		tabsize=4,
+		breaklines=true,
+  		breakatwhitespace=true,
+  		title=\lstname,       
+}
+
+\makeatletter
+\renewcommand\@biblabel[1]{#1.\hfil}
+\makeatother
+
+\begin{document}
+
+\begin{titlepage}
+
+\begin{center}
+Министерство науки и высшего образования Российской Федерации
+\end{center}
+
+\begin{center}
+Федеральное государственное автономное образовательное учреждение высшего образования \\
+Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского
+\end{center}
+
+\begin{center}
+Институт информационных технологий, математики и механики
+\end{center}
+
+\vspace{4em}
+
+\begin{center}
+\textbf{\LargeОтчет по лабораторной работе} \\
+\end{center}
+\begin{center}
+\textbf{\Large«Алгоритм глобального поиска (Стронгина) для одномерных задач оптимизации»} \\
+\end{center}
+
+\vspace{4em}
+
+\newbox{\lbox}
+\savebox{\lbox}{\hbox{text}}
+\newlength{\maxl}
+\setlength{\maxl}{\wd\lbox}
+\hfill\parbox{7cm}{
+\hspace*{5cm}\hspace*{-5cm}\textbf{Выполнил:} \\ студент группы 381806-1 \\ Тактаев А. А.\\
+\\
+\hspace*{5cm}\hspace*{-5cm}\textbf{Проверил:}\\ доцент кафедры МОСТ, \\ кандидат технических наук \\ Сысоев А. В.\\
+}
+\vspace{\fill}
+
+\begin{center} Нижний Новгород \\ 2020 \end{center}
+
+\end{titlepage}
+
+\setcounter{page}{2}
+
+% Содержание
+\tableofcontents
+\newpage
+
+% Введение
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+Задачи многоэкстремальной оптимизации обладают узкой сферой возможностей аналитического исследования и высокой трудоемкостью численного решения, поскольку в последнем случае для них характерен экспоненциальный рост вычислительных затрат с ростом размерности.
+\par Одним из методов решения задач одномерной оптимизации является алгоритм глобального поиска, носящий имя доктора физико-математических наук Романа Григорьевича Стронгина. Этот метод работает для функций, удовлетворяющих условию Липшица и основан на вероятностной модели функций, заданных на конечном множестве точек.
+
+\newpage
+
+% Постановка задачи
+\section*{Постановка задачи}
+\addcontentsline{toc}{section}{Постановка задачи}
+В рамках лабораторной работы необходимо реализовать последовательную и параллельную реализации алгоритма Стронгина для одномерных задач оптимизации, проверить корректность работы алгоритмов, сравнить эффективность последовательной и параллельной реализации. Распараллеливание должно происходить по характеристическим функциям. В качестве целевой используем липшицеву функцию одного аргумента: 
+\par $y = f(x), x\in[a, b], \mid f(x_1) - f(x_2) \mid \le L \mid x_1 - x_2 \mid , L = const $
+\par Для реализации параллельной версии необходимо использовать библиотеку межпроцессорного взаимодействия MPI. Для проверки корректности работы алгоритмов используется Google Testing Framework.
+\newpage
+
+% Метод решения
+\section*{Описание алгоритмов}
+\addcontentsline{toc}{section}{Метод решения}
+Алгоритм глобального поиска (АГП) позволяет находить абсолютный минимум функции
+на отрезке и основан на вероятностном подходе.
+\par На основе набора известных значений функции в точках отрезка ищется интервал между
+соседними точками, на котором абсолютный минимум наиболее вероятен. На этом интервале
+берется точка, соответствующая математическому ожиданию положения минимума, вычисляется значение функции в ней. Точка добавляется в список известных значений, и происходит
+переход к следующей итерации. Алгоритм останавливается, когда расстояние между точками
+отрезка последовательных итераций становится меньше заданного критерия.
+Единственным требованием, которому должна удовлетворять целевая функция $g(x)$,  —
+это выполнение обобщенного условия Липшица на всем интервале поиска: 
+\par $\mid f(x_1) - f(x_2) \mid \le L \mid x_1 - x_2 \mid , L = const $
+\par Опишем шаги алгоритма. Рассмотрим функцию $g(x)$ на отрезке $[a,b]$
+вещественной оси. Обозначим $z_i = g(x_i)$ значения целевой функции в точках $x_i$ отрезка $[a,b]$.
+\par В начале алгоритма положим $x_0 = a, x_1 = b$ и вычислим значения функции $g(a)$ и $g(b)$ в этих
+точках. Процедура $k + 1$ итерации состоит в следующем. Пусть $x_i$ и $z_i$ для $i = 0, 1, ..., k$ нам уже
+известны из предыдущих $k$ итераций.
+\begin{enumerate}
+\item Перенумеровать точки $x_i$, $i = 0, 1, ..., k$ в порядке возрастания значений $a = x_0 < ... < x_k = b$.
+\item Оценить максимальное абсолютное значение относительной первой разности: 
+\par $M = \max\limits_{ 1 \le i \le k} \cfrac{\mid z_i - z_{i-1} \mid}{x_i - x_{i-1}}$.
+\item Положить: 
+\par $m = \begin{cases}
+1, &\text{если $M = 0$;}\\
+rM, &\text{если $M > 0$.}
+\end{cases}$
+\par где $r > 1$ есть заданный коэффициент, параметр алгоритма, который определяется из предположений о коэффициенте K в условии Липшица.
+\item Для каждого интервала $(x_{i-1}, x_i), 0 \le i \le k$ , вычислить величину:
+\par $R(i) = m(x_i - x_{i-1}) + \cfrac{(z_i - z_{i - 1})^2}{m(x_i - x_{i-1})} - 2(z_i + z_{i - 1})$
+\par которая называется характеристикой интервала и определяет вероятность нахождения глобального минимума на этом интервале. Чем она больше, тем больше вероятность.
+\item Определить интервал $(x_{i-1}, x_i)$, которому соответствует максимальная характеристика $R(t) = \max\limits_{ 1 \le i \le k} R(i)$
+\par Если максимальная характеристика соответствует нескольким интервалам,
+то в качестве t выбирается минимальное число.
+\item Положить:
+\par $x_{k + 1} = \cfrac{x_{t - 1} + x_t}{2} - \cfrac{z_t - z_{t-1}}{2m}$
+\end{enumerate}
+\par Алгоритм останавливается, когда $x_t - x_{t - 1} < \varepsilon$, где $\varepsilon$ - заданное число, определяющее точность приближения к минимуму.
+
+\newpage
+\righthyphenmin=2
+
+% Схема распараллеливания
+\section*{Схема распараллеливания}
+\addcontentsline{toc}{section}{Схема распараллеливания}
+В задании указано, что распараллеливание должно происходить по характеристикам. Таким образом, с помощью функций библиотеки межпроцессного взаимодействия MPI, было решено сделать следующее:
+\begin{enumerate}
+\item Для существующих векторов $z$ и $x$ в каждом из доступных процессов подсчитать оценку константы Липшица $m$ для каждых двух соседних элементов. Если процессов больше, чем количество элементов, то в последнем процессе найти максимум из оценок константы Липшица для оставшихся отрезков.
+\item С помощью функции MPI\_Allreduce операцией MPI\_MAX во все процессы коммуникатора положить максимум из всех локально вычисленных значений $m$. Это и будет глобальной оценкой константы Липшица для векторов $z$ и $x$ на данной итерации цикла. 
+\item Аналогичные действия проделать с функциями характеристик, но с учетом следующего фактора: помимо максимального из всех значений функций характеристик по алгоритму нужен также и номер отрезка, для которого была подсчитана максимальная характеристика. Эту проблему можно решить следующим образом:
+\begin{itemize}
+\item Создать структуру, содержащую в себе 2 поля: первое --- типа double, второе --- типа int. Первое значение --- это локально на каком-либо процессе вычисленное значение функции характеристик, а второе - номер отрезка, на котором производилось вычисление.
+\item Вычисление максимума производить по типу MPI\_DOUBLE\_INT с помощью операции MPI\_MAXLOC. Эти параметры определены в библиотеке и обозначают следующее: производятся вычисления по структуре, содержащей только два соответствующих поля (типа double и типа int), а максимум брать по элементу типа double.
+\end{itemize}
+\end{enumerate}
+
+\newpage
+
+% Описание программной реализации
+\section*{Описание программной реализации}
+\addcontentsline{toc}{section}{Описание программной реализации}
+Структура программы представляет собой класс, выглядящий следующим образом:
+\begin{lstlisting}
+class Strongin {
+ public:
+    std::vector<double> x, z;
+    int n;
+    double a, b;
+    double r;
+    int prec;
+    std::function<double(double)> f;
+
+    Strongin(double _a, double _b, double _r, int _prec, std::function<double(double)> _f);
+    void addNode(double xx);
+    double calculateM();
+    std::vector<double> calculateR(double m);
+
+    double seqStronginSearch();
+    double parStronginSearch();
+};
+\end{lstlisting}
+\par $x$ - вектор аргументов, $z$ - вектор значений функции в данных точках, $n$ - текущее количество элементов в векторах $x$ и $z$, $a$ и $b$ - соответственно левый и правый конец отрезка, на котором рассматривается функция, $r$ - заранее заданный параметр алгоритма, $prec$ - точность алгоритма (степень, которую нужно возвести 10 для получения точности), $f$ - сама функция, для которой выполняется алгоритм.
+\par Конструктор инициализации начальных параметров алгоритма:
+\begin{lstlisting}
+Strongin(double _a, double _b, double _r, int prec, std::function<double(double)> _f);
+\end{lstlisting}
+\par Вход: функция, левый и правый конец отрезка, на котором она рассматривается, параметр алгоритма и точность вычислений.
+\par Функция добавления нового узла в векторы $x$ и $z$:
+\begin{lstlisting}
+void addNode(double xx);
+\end{lstlisting}
+\par Вход: значение $x$, расположенное между $a$ и $b$.
+\par Функция подсчета оценки константы Липшица для текущих векторов (для последовательного алгоритма):
+\begin{lstlisting}
+double calculateM();
+\end{lstlisting}
+\par Функция рассчета характеристик для каждого отрезка (для последовательного алгоритма):
+\begin{lstlisting}
+std::vector<double> calculateR(double m);
+\end{lstlisting}
+\par Вход: оценка константы Липшица, посчитанная предыдущей функцией. Выход: вектор, содержащий значение характеристики для каждого отрезка.
+\par Функция, содержащая реализацию последовательного алгоритма Стронгина:
+\begin{lstlisting}
+double seqStronginSearch();
+\end{lstlisting}
+\par Функция, содержащая реализацию параллельного алгоритма Стронгина:
+\begin{lstlisting}
+double parStronginSearch();
+\end{lstlisting}
+\par Выходом обеих этих функций является глобальный минимум функции $f$ на отрезке $[a, b]$.
+\newpage
+
+% Подтверждение корректности
+\section*{Подтверждение корректности}
+\addcontentsline{toc}{section}{Подтверждение корректности}
+Для подтверждения корректности в программе представлен набор тестов, разработанных с Google Testing Framework.
+\par Набор представляет из себя тесты, которые проверяют корректность вычислений (сравниваются матрицы, полученные из последовательного и параллельного алгоритма), а также эффективность (вычисление занимаемого последовательной и параллельной сортировок времени и сравнение полученных данных).
+\par Успешное прохождение всех тестов подтверждает корректность работы написанной программы.
+\newpage
+
+% Результаты экспериментов
+\section*{Результаты экспериментов}
+\addcontentsline{toc}{section}{Результаты экспериментов}
+Вычислительные эксперименты для оценки эффективности параллельного алгоритма Стронгина проводились на оборудовании со следующей аппаратной конфигурацией:
+
+\begin{itemize}
+\item Процессор: Intel Core i5-9400f, 2.90 GHz, 6 ядер;
+\item Оперативная память: 16 ГБ;
+\item ОС: Майкрософт Windows 10 Home 64-bit Build 19041.685.
+\end{itemize}
+
+\par В рамках эксперимента было вычислено время работы последовательного и параллельного алгоритма глобального поиска Стронгина для задач одномерной оптимизации.
+\par Результаты экспериментов представлены ниже.
+
+\begin{table}[!h]
+\caption{Результаты экспериментов для функции $y = \sqrt{x}*sin(x), x \in [0, 100], \varepsilon = 10^{-12}$}
+\centering
+\begin{tabular}{lllll}
+Процессы & Последовательно & Параллельно & Ускорение  \\
+4        & 0.0006763         & 0.0005965     & 1.13       \\
+6        & 0.0006630         & 0.0005401     & 1.23       \\
+10       & 0.0006624         & 0.0005613     & 1.18       
+\end{tabular}
+\end{table}
+
+\begin{table}[!h]
+\caption{Результаты экспериментов для функции $y = x^3, x \in [-100, 100], \varepsilon = 10^{-12}$}
+\centering
+\begin{tabular}{lllll}
+Процессы & Последовательно & Параллельно & Ускорение  \\
+4        & 0.0002098         & 0.0001988     & 1.05       \\
+6        & 0.0002124         & 0.0001903     & 1.12       \\
+10       & 0.0002077         & 0.0002003     & 1.04       
+\end{tabular}
+\end{table}
+
+\par По данным экспериментов видно, что параллельный алгоритм Стронгина работает быстрее, но ускорение незначительно ввиду различных накладных расходов на передачу данных между процессами.
+\newpage
+
+% Заключение
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+В ходе выполнения лабораторной работы был разработан последовательный и параллельный алгоритм глобального поиска Стронгина для задач одномерной оптимизации.
+\par По данным экспериментов удалось сравнить время работы параллельной и последовательной реализаций. Выявлено, что параллельный алгоритм работает несколько быстрее, что показывает преимущество параллельных вычислений.
+\par Для подтверждения корректности работы программы написаны тесты с использованием Google Testing Framework.
+\newpage
+
+% Список литературы
+\begin{thebibliography}{1}
+\addcontentsline{toc}{section}{Список литературы}
+\bibitem{nngu} Центр суперкомпьютерных технологий, официальный сайт. Нижегородский
+государственный университет им. Н.И. Лобачевского.  // URL \url {http://www.hpcc.unn.ru/?dir=1034} (дата обращения: 06.12.2020)
+\bibitem{spbgu} Реализация и применение параллельного алгоритма глобального поиска минимума к задаче оптимизации параметров молекулярно-динамического потенциала ReaxFF/ К. С. Шефовa, М. М. Степанова. (дата обращения: 06.12.2020)
+\bibitem{wiki} Википедия: Метод Стронгина // URL \url {https://wikipedia.org/wiki/} (дата обращения: 07.12.2020)
+\end{thebibliography}
+\newpage
+
+% Приложение
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+В этом разделе находится листинг всего кода, написанного в рамках лабораторной работы.
+\begin{lstlisting}
+// strongin_method.h
+
+// Copyright 2020 Taktaev Artem
+#ifndef MODULES_TASK_3_TAKTAEV_A_STRONGIN_METHOD_STRONGIN_METHOD_H_
+#define MODULES_TASK_3_TAKTAEV_A_STRONGIN_METHOD_STRONGIN_METHOD_H_
+#include <vector>
+#include <functional>
+
+class Strongin {
+ public:
+    std::vector<double> x, z;
+    int n;
+    double a, b;
+    double r;
+    int prec;
+    std::function<double(double)> f;
+
+    Strongin(double _a, double _b, double _r, int prec, std::function<double(double)> _f);
+    void addNode(double xx);
+    double calculateM();
+    std::vector<double> calculateR(double m);
+
+    double seqStronginSearch();
+    double parStronginSearch();
+};
+
+#endif  // MODULES_TASK_3_TAKTAEV_A_STRONGIN_METHOD_STRONGIN_METHOD_H_
+
+\end{lstlisting}
+\begin{lstlisting}
+// strongin_method.cpp
+
+// Copyright 2020 Taktaev Artem
+#include <mpi.h>
+#include <cmath>
+#include <vector>
+#include <functional>
+#include <algorithm>
+#include "../../../modules/task_3/taktaev_a_strongin_method/strongin_method.h"
+
+Strongin::Strongin(double _a, double _b, double _r, int _prec, std::function<double(double)> _f) {
+    if (_a > _b) throw "Must be a < b";
+    if (_r <= 1) throw "Must be r > 1";
+    if (_prec > -2) throw "More precisely please";
+    a = _a;
+    b = _b;
+    r = _r;
+    prec = _prec;
+    f = _f;
+
+    n = 2;
+    x.resize(n);
+    x[0] = a;
+    x[1] = b;
+    z.resize(n);
+    z[0] = f(a);
+    z[1] = f(b);
+}
+
+void Strongin::addNode(double xx) {
+    if ((xx <= a) || (xx >= b)) throw "New node out of range";
+    n++;
+    x.resize(n);
+    z.resize(n);
+    int i = 0;
+    while (xx > x[i]) i++;
+    for (int j = i + 1; j < n; j++) {
+        x[j] = x[j - 1];
+        z[j] = z[j - 1];
+    }
+    x[i] = xx;
+    z[i] = f(xx);
+}
+
+double Strongin::calculateM() {
+    double max = (std::abs(z[1] - z[0])) / (x[1] - x[0]);
+    for (int i = 2; i < n; i++) {
+        if ((std::abs(z[i] - z[i - 1])) / (x[i] - x[i - 1]) > max) {
+            max = (std::abs(z[i] - z[i - 1])) / (x[i] - x[i - 1]);
+        }
+    }
+    if (max == 0) return 1.0;
+    return r * max;
+}
+
+std::vector<double> Strongin::calculateR(double m) {
+    std::vector<double> r_vec;
+    for (int i = 1; i < n; i++) {
+        double r = m * (x[i] - x[i - 1]) + (z[i] - z[i - 1]) * (z[i] - z[i - 1]) / (m * (x[i] - x[i - 1]))
+                   - 2 * (z[i] + z[i - 1]);
+        r_vec.push_back(r);
+    }
+    return r_vec;
+}
+
+double Strongin::seqStronginSearch() {
+    double delta = b - a;
+    double eps = pow(10, prec);
+    int t = 1;
+    double xx;
+    while (delta > eps) {
+        double m = calculateM();
+        std::vector<double> r_vec = calculateR(m);
+        double r_max = r_vec[0];
+        t = 1;
+        for (int i = 2; i < n; i++) {
+            if (r_vec[i - 1] > r_max) {
+                r_max = r_vec[i - 1];
+                t = i;
+            }
+        }
+        xx = (x[t - 1] + x[t]) / 2 - (z[t] - z[t - 1]) / (2 * m);
+        addNode(xx);
+        delta = x[t] - x[t - 1];
+    }
+    return xx;
+}
+
+struct Arteboss {
+    double R;
+    int T;
+
+    Arteboss() {
+        R = 0;
+        T = 1;
+    }
+};
+
+double Strongin::parStronginSearch() {
+    int proc_num, proc_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &proc_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &proc_num);
+    int t = 0;
+    double delta = b - a;
+    double eps = pow(10, prec);
+    double m = 0;
+    double _m = 0;
+    double xx;
+
+    while (delta > eps) {
+        for (int i = 1; i < n; i++) {
+            if (proc_rank == (i - 1) % proc_num) {
+                if ((std::abs(z[i] - z[i - 1])) / (x[i] - x[i - 1]) > _m) {
+                     _m = (std::abs(z[i] - z[i - 1])) / (x[i] - x[i - 1]);
+                }
+            }
+        }
+        MPI_Allreduce(&_m, &m, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        m = (m == 0 ? 1 : r * m);
+        Arteboss r_max;
+        Arteboss r1;
+        for (int i = 1; i < n; i++) {
+            if (proc_rank == (i - 1) % proc_num) {
+                if (m * (x[i] - x[i - 1]) + (z[i] - z[i - 1]) * (z[i] - z[i - 1]) / (m * (x[i] - x[i - 1]))
+                         - 2 * (z[i] + z[i - 1]) > r1.R) {
+                    r1.R = m * (x[i] - x[i - 1]) + (z[i] - z[i - 1]) * (z[i] - z[i - 1]) / (m * (x[i] - x[i - 1]))
+                         - 2 * (z[i] + z[i - 1]);
+                    r1.T = i;
+                }
+            }
+        }
+        MPI_Allreduce(&r1, &r_max, 1, MPI_DOUBLE_INT, MPI_MAXLOC, MPI_COMM_WORLD);
+        t = r_max.T;
+        xx = (x[t - 1] + x[t]) / 2 - (z[t] - z[t - 1]) / (2 * m);
+        addNode(xx);
+        delta = x[t] - x[t - 1];
+    }
+    return xx;
+}
+
+\end{lstlisting}
+\begin{lstlisting}
+// main.cpp
+// Copyright 2020 Taktaev Artem
+#include <mpi.h>
+#include <gtest-mpi-listener.hpp>
+#include <gtest/gtest.h>
+#include <iostream>
+#include <cmath>
+#include "../../../modules/task_3/taktaev_a_strongin_method/strongin_method.h"
+
+TEST(Strongin_Method_MPI, Test_Wrong_Parameters_In_Constructor) {
+    ASSERT_ANY_THROW(Strongin X(2, -2, 2, -4, [](double x)->double { return std::sin(x); }));
+}
+
+TEST(Strongin_Method_MPI, Test_Correct_Parameters_In_Constructor) {
+    ASSERT_NO_THROW(Strongin X(-1, 1, 2, -4, [](double x)->double { return std::sin(x); }));
+}
+
+TEST(Strongin_Method_MPI, Test_Wrong_X_In_add_Node) {
+    Strongin X(-1, 1, 2, -4, [](double x)->double { return std::sin(x); });
+    ASSERT_ANY_THROW(X.addNode(5));
+}
+
+TEST(Strongin_Method_MPI, Test_Correct_X_In_add_Node) {
+    Strongin X(-1, 1, 2, -4, [](double x)->double { return std::sin(x); });
+    ASSERT_NO_THROW(X.addNode(0.5));
+}
+
+TEST(Strongin_Method_MPI, Test_Correct_Work_Of_seq_Strongin_Method) {
+    Strongin Y(-1, 1, 2, -10, [](double x)->double { return std::sin(x); });
+    ASSERT_NEAR(Y.seqStronginSearch(), -1, 1.0e-10);
+}
+
+TEST(Strongin_Method_MPI, Test_Correct_Work_Of_par_Strongin_Method) {
+    Strongin Z(-1, 1, 2, -10, [](double x)->double { return std::sin(x); });
+    ASSERT_NEAR(Z.parStronginSearch(), -1, 1.0e-10);
+}
+
+TEST(Strongin_Method_MPI, Test_Eff) {
+    Strongin A(-1, 1, 2, -10, [](double x)->double { return std::sin(x); });
+    Strongin B(-1, 1, 2, -10, [](double x)->double { return std::sin(x); });
+    int proc_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &proc_rank);
+    double start, end;
+    if (proc_rank == 0) {
+        start = MPI_Wtime();
+        A.seqStronginSearch();
+        end = MPI_Wtime();
+        std::cout << "Time sequential = " << end - start << std::endl;
+    }
+    start = MPI_Wtime();
+    B.parStronginSearch();
+    end = MPI_Wtime();
+    if (proc_rank == 0) {
+        std::cout << "Time parallel = " << end - start << std::endl;
+    }
+}
+
+int main(int argc, char* argv[]) {
+    ::testing::InitGoogleTest(&argc, argv);
+    MPI_Init(&argc, &argv);
+
+    ::testing::AddGlobalTestEnvironment(new GTestMPIListener::MPIEnvironment);
+    ::testing::TestEventListeners &listeners = ::testing::UnitTest::GetInstance()->listeners();
+
+    listeners.Release(listeners.default_result_printer());
+    listeners.Release(listeners.default_xml_generator());
+
+    listeners.Append(new GTestMPIListener::MPIMinimalistPrinter);
+    return RUN_ALL_TESTS();
+}
+
+\end{lstlisting}
+
+\end{document}
